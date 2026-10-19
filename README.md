@@ -1,8 +1,8 @@
 # 卫戍协议 Flutter 客户端
 
-[下载 Android 预览版](https://github.com/ChlorophyTeio/stronghold-client/releases/tag/v0.2.1-preview) · [更新维护说明](updates/README.md)
+[下载 Android 预览版](https://github.com/ChlorophyTeio/stronghold-client/releases/tag/v0.2.2-preview) · [更新维护说明](updates/README.md)
 
-Android 0.2.1 预览版，强制连接 `https://test-spa.ppparty.top:8000`（spa-test）。
+Android 0.2.2 预览版，强制连接 `https://test-spa.ppparty.top:8000`（spa-test）。
 源码、素材导出和交付 APK 均在此目录；临时构建缓存见下文。本次修复不需要修改游戏容器。
 
 ## 当前功能
@@ -29,7 +29,7 @@ Android 0.2.1 预览版，强制连接 `https://test-spa.ppparty.top:8000`（spa
 
 ## 安装 APK
 
-根目录的 `stronghold-client-0.2.1-preview.apk` 为通用 APK（armv7、arm64、x86_64）。
+根目录的 `stronghold-client-0.2.2-preview.apk` 为通用 APK（armv7、arm64、x86_64）。
 校验和见同名 `.sha256` 文件，仅保留当前版本交付包。新版可覆盖安装，不需卸载旧版。
 完整检查记录和已知验证范围见 [BUILD-REPORT.md](BUILD-REPORT.md)。
 当前使用开发签名，后续 APK 更新必须保持与已安装应用的签名兼容；本地签名与更新私钥均须保留。
@@ -82,11 +82,11 @@ Android 原生规则测试在 `android/app/src/test/`，发布版运行测试在
 不因随 APK 打包而获得新的授权；遵守上游 `NOTICE.md`。
 美术资源不进入 Git。第三方 Flutter 包授权可在应用依赖和包源码中查阅。
 
-Android 游戏视口按 DisplayCutout、RoundedCorner 和系统手势区域避让，随横屏方向更新。客户端设置入口仅在 APK 内通过页面 UI 钩子加入，不修改测试服页面，也不暴露 JavaScript 原生接口。
+Android 游戏视口默认铺满完整屏幕，不自动避让挖孔、圆角或系统手势区；网页安全区变量同样置零。客户端设置入口仅在 APK 内通过页面 UI 钩子加入，不修改测试服页面，也不暴露 JavaScript 原生接口。
 
-屏幕边距：进入“设置 → 客户端设置 → 屏幕边距”，可独立调整四边额外留白（0–64），拖动实时预览、自动保存；“恢复默认”将额外边距归零并保留系统自动避让。四边数值相对当前横屏方向应用。
+屏幕边距：进入“设置 → 客户端设置 → 屏幕边距”，可独立调整四边额外留白（0–64），拖动实时预览、自动保存；“恢复默认”将四边手动边距归零，恢复全屏无额外留白。四边数值相对当前横屏方向应用。已有手动设置会保留；升级后若希望完全铺满，请点击“恢复默认”。
 
-如安装提示 v2 内容摘要不匹配，可使用根目录当前版本的 `stronghold-client-0.2.1-verified-*.zip`；先完整解压，再安装其中的 APK，校验值见包内 `SHA256SUMS.txt`。服务器副本已验证，手机端应比较文件哈希以确认传输完整性。发布脚本对交付副本验签后原子发布。
+如安装提示 v2 内容摘要不匹配，可使用根目录当前版本的 `stronghold-client-0.2.2-verified-*.zip`；先完整解压，再安装其中的 APK，校验值见包内 `SHA256SUMS.txt`。服务器副本已验证，手机端应比较文件哈希以确认传输完整性。发布脚本对交付副本验签后原子发布。
 
 
 ## 共享素材库与更新准备

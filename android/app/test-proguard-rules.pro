@@ -2,3 +2,5 @@
 -keep class top.ppparty.stronghold_client.NativeSmokeInstrumentation { *; }
 
 -keep class top.ppparty.stronghold_client.UpdateSmoke { *; }
+
+-keep class top.ppparty.stronghold_client.UpgradeSmoke { *; }

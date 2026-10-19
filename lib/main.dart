@@ -122,7 +122,7 @@ class _LauncherState extends State<Launcher> {
                 )),
               ]),
               const SizedBox(height: 24),
-              const Chip(label: Text('Android 预览版 · 0.2.1')),
+              const Chip(label: Text('Android 预览版 · 0.2.2')),
               const SizedBox(height: 12),
               const Text('本地素材，在线联机',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),

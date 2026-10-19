@@ -22,12 +22,17 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
     private static final String ORIGIN = "https://test-spa.ppparty.top:8000/";
     private boolean updatesOnly;
     private boolean updatesOnline;
+    private String upgradeMode;
+    private boolean requireCutout;
     private Activity activity;
     private WebView web;
 
-    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); updatesOnly = "true".equals(arguments.getString("updatesOnly")); updatesOnline = "true".equals(arguments.getString("updatesOnline")); start(); }
+    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); updatesOnly = "true".equals(arguments.getString("updatesOnly")); updatesOnline = "true".equals(arguments.getString("updatesOnline")); upgradeMode = arguments.getString("upgradeMode", ""); requireCutout = "true".equals(arguments.getString("requireCutout")); start(); }
 
     @Override public void onStart() {
+        if ("download".equals(upgradeMode)) { UpgradeSmoke.download(this); return; }
+        if ("verify".equals(upgradeMode)) { UpgradeSmoke.verify(this); return; }
+        if ("install".equals(upgradeMode)) { UpgradeSmoke.install(this); return; }
         if (updatesOnline) { UpdateSmoke.online(this); return; }
         if (updatesOnly) { UpdateSmoke.run(this); return; }
         Bundle result = new Bundle();
@@ -94,8 +99,9 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
                     Thread.sleep(300);
                 }
             }
-            checkSafeArea();
-            result.putBoolean("safeArea", true);
+            checkFullscreenViewport();
+            require("true".equals(eval("['t','r','b','l'].every(side => getComputedStyle(document.documentElement).getPropertyValue('--sa-' + side).trim() === '0px')")), "Website safe area still reserves space");
+            result.putBoolean("fullBleed", true);
             eval("document.querySelector('[data-testid=\"settings-btn\"], [aria-label=\"设置\"]').click()");
             await(10000, () -> "true".equals(eval("!!document.querySelector('[data-sp-client-settings] a')")));
             require("1".equals(eval("document.querySelectorAll('[data-sp-client-settings]').length")), "Duplicate client settings entry");
@@ -110,7 +116,7 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
             getUiAutomation().performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
             runOnMainSync(() -> activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE));
             Thread.sleep(2000);
-            checkSafeArea();
+            checkFullscreenViewport();
             require("true".equals(eval("innerWidth > innerHeight")), "Reverse landscape viewport is wrong");
             saveScreenshot("native-reverse.png");
             result.putBoolean("reverseLandscape", true);
@@ -213,7 +219,7 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
         require(slider(getUiAutomation().getRootInActiveWindow(), "左侧边距").getRangeInfo().getCurrent() == 12f, "Slider did not restore saved value");
         clickText("恢复默认");
         Thread.sleep(300);
-        runOnMainSync(() -> require(((ViewGroup) web.getParent()).getPaddingLeft() == base[0], "Reset did not restore automatic margin"));
+        runOnMainSync(() -> require(((ViewGroup) web.getParent()).getPaddingLeft() == base[0], "Reset did not restore full display"));
         saveScreenshot("native-margin-default.png");
         clickText("完成");
         await(5000, () -> getTargetContext().getSharedPreferences("client_display", 0).getInt("left", -1) == 0);
@@ -236,19 +242,22 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
         shot.recycle();
     }
 
-    private void checkSafeArea() {
+    private void checkFullscreenViewport() {
         runOnMainSync(() -> {
             android.view.ViewGroup root = (android.view.ViewGroup) web.getParent();
-            android.view.WindowInsets insets = root.getRootWindowInsets();
-            android.view.DisplayCutout cutout = insets.getDisplayCutout();
-            if (cutout != null) {
-                require(root.getPaddingLeft() >= cutout.getSafeInsetLeft(), "Left cutout overlaps game");
-                require(root.getPaddingRight() >= cutout.getSafeInsetRight(), "Right cutout overlaps game");
-                require(root.getPaddingTop() >= cutout.getSafeInsetTop(), "Top cutout overlaps game");
-                require(root.getPaddingBottom() >= cutout.getSafeInsetBottom(), "Bottom cutout overlaps game");
+            require(root.getPaddingLeft() == 0 && root.getPaddingTop() == 0 && root.getPaddingRight() == 0 && root.getPaddingBottom() == 0, "Automatic game margins remain");
+            View decor = activity.getWindow().getDecorView();
+            if(requireCutout) {
+                android.view.DisplayCutout cutout = decor.getRootWindowInsets().getDisplayCutout();
+                require(cutout != null && !cutout.getBoundingRects().isEmpty(), "Cutout fixture was not active");
             }
-            require(web.getWidth() == root.getWidth() - root.getPaddingLeft() - root.getPaddingRight(), "WebView ignores safe width");
-            require(web.getHeight() == root.getHeight() - root.getPaddingTop() - root.getPaddingBottom(), "WebView ignores safe height");
+            android.util.DisplayMetrics physical = new android.util.DisplayMetrics();
+            activity.getWindowManager().getDefaultDisplay().getRealMetrics(physical);
+            require(root.getWidth() == physical.widthPixels && root.getHeight() == physical.heightPixels, "Game does not fill physical display");
+            int[] location = new int[2]; root.getLocationOnScreen(location);
+            require(location[0] == 0 && location[1] == 0, "Root view is offset from full display");
+            require(root.getWidth() == decor.getWidth() && root.getHeight() == decor.getHeight(), "Root view is not full window");
+            require(web.getWidth() == root.getWidth() && web.getHeight() == root.getHeight(), "WebView is not full window");
         });
     }
 

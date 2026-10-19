@@ -1,4 +1,9 @@
 (() => {
+  // The Android client uses the full display. Explicit native sliders are the
+  // only margins; do not let the website add another automatic safe area.
+  for (const side of ['t', 'r', 'b', 'l']) {
+    document.documentElement.style.setProperty(`--sa-${side}`, '0px', 'important');
+  }
   if (window.__spClientSettingsObserver) return;
   const addEntry = () => {
     for (const list of document.querySelectorAll('.set-list')) {

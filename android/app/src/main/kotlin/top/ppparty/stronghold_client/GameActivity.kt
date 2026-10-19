@@ -16,7 +16,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.RoundedCorner
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
@@ -47,7 +46,6 @@ class GameActivity : Activity() {
     private val hits = AtomicLong()
     private val saved = AtomicLong()
     private val errors = ArrayDeque<String>()
-    private val automaticInsets = IntArray(4)
     private val manualInsets = IntArray(4)
     private val marginKeys = arrayOf("left", "top", "right", "bottom")
     private var generation = 0
@@ -77,7 +75,7 @@ class GameActivity : Activity() {
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
         root.addView(status, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
         root.addView(progress, FrameLayout.LayoutParams(-1, dp(3), Gravity.TOP))
-        applySafeArea()
+        applyFullscreenViewport()
         if (Build.VERSION.SDK_INT >= 33) {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT) { menu() }
@@ -134,8 +132,8 @@ class GameActivity : Activity() {
             View.SYSTEM_UI_FLAG_LAYOUT_STABLE
     }
 
-    /** Keep every game HUD/modal within the usable rectangle, including 180° rotation. */
-    private fun applySafeArea() {
+    /** Full display first: only explicit user margins reduce the game viewport. */
+    private fun applyFullscreenViewport() {
         if (Build.VERSION.SDK_INT >= 28) {
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode = if (Build.VERSION.SDK_INT >= 30)
@@ -143,49 +141,23 @@ class GameActivity : Activity() {
                 else WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
         }
+        root.fitsSystemWindows = false
         root.setOnApplyWindowInsetsListener { _, insets ->
-            var left = 0; var top = 0; var right = 0; var bottom = 0
-            if (Build.VERSION.SDK_INT >= 28) insets.displayCutout?.let {
-                left = it.safeInsetLeft; top = it.safeInsetTop
-                right = it.safeInsetRight; bottom = it.safeInsetBottom
-            }
-            if (Build.VERSION.SDK_INT >= 30) {
-                val bars = insets.getInsets(WindowInsets.Type.systemBars() or
-                    WindowInsets.Type.mandatorySystemGestures())
-                left = maxOf(left, bars.left); top = maxOf(top, bars.top)
-                right = maxOf(right, bars.right); bottom = maxOf(bottom, bars.bottom)
-            } else {
-                @Suppress("DEPRECATION")
-                left = maxOf(left, insets.systemWindowInsetLeft)
-                @Suppress("DEPRECATION")
-                top = maxOf(top, insets.systemWindowInsetTop)
-                @Suppress("DEPRECATION")
-                right = maxOf(right, insets.systemWindowInsetRight)
-                @Suppress("DEPRECATION")
-                bottom = maxOf(bottom, insets.systemWindowInsetBottom)
-            }
-            if (Build.VERSION.SDK_INT >= 31) {
-                fun corner(position: Int): Int = kotlin.math.ceil(
-                    (insets.getRoundedCorner(position)?.radius ?: 0) * (1 - 1 / kotlin.math.sqrt(2.0))).toInt()
-                val tl = corner(RoundedCorner.POSITION_TOP_LEFT)
-                val tr = corner(RoundedCorner.POSITION_TOP_RIGHT)
-                val bl = corner(RoundedCorner.POSITION_BOTTOM_LEFT)
-                val br = corner(RoundedCorner.POSITION_BOTTOM_RIGHT)
-                left = maxOf(left, tl, bl); top = maxOf(top, tl, tr)
-                right = maxOf(right, tr, br); bottom = maxOf(bottom, bl, br)
-            }
-            automaticInsets[0] = left; automaticInsets[1] = top
-            automaticInsets[2] = right; automaticInsets[3] = bottom
             applyContentPadding()
-            insets
+            // Stop WebView from applying a second cutout/system-bar safe area.
+            if (Build.VERSION.SDK_INT >= 30) WindowInsets.CONSUMED else {
+                @Suppress("DEPRECATION")
+                val consumed = insets.consumeSystemWindowInsets()
+                if (Build.VERSION.SDK_INT >= 28) consumed.consumeDisplayCutout() else consumed
+            }
         }
+        applyContentPadding()
         root.requestApplyInsets()
     }
 
     private fun applyContentPadding() {
-        root.setPadding(
-            automaticInsets[0] + dp(manualInsets[0]), automaticInsets[1] + dp(manualInsets[1]),
-            automaticInsets[2] + dp(manualInsets[2]), automaticInsets[3] + dp(manualInsets[3]))
+        root.setPadding(dp(manualInsets[0]), dp(manualInsets[1]),
+            dp(manualInsets[2]), dp(manualInsets[3]))
     }
 
     private fun saveMargins() {
@@ -201,7 +173,7 @@ class GameActivity : Activity() {
             setPadding(dp(20), dp(8), dp(20), dp(8))
         }
         content.addView(TextView(this).apply {
-            text = "在自动避让挖孔和圆角的基础上增加留白。拖动立即生效并自动保存；0 表示仅使用自动避让。"
+            text = "默认铺满全屏，不自动避让挖孔、圆角和手势区。四边均为 0 时无额外留白；按需要手动增加边距，拖动立即生效并自动保存。"
             textSize = 14f
             setPadding(0, 0, 0, dp(12))
         })
@@ -326,6 +298,10 @@ class GameActivity : Activity() {
                         showFailure("加载超过 25 秒。请检查网络，或使用 Android 返回手势查看诊断。")
                     }
                 }, 25000)
+            }
+
+            override fun onPageCommitVisible(view: WebView, url: String?) {
+                installSettings(view)
             }
 
             override fun onPageFinished(view: WebView, url: String?) {

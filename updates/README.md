@@ -43,12 +43,12 @@ python3 tool/configure-updates.py ChlorophyTeio/stronghold-client
 node tool/export_resources.mjs
 node tool/verify_resources.mjs
 python3 tool/build-update.py \
-  --output updates/releases/v0.2.2-preview \
-  --base-url https://github.com/ChlorophyTeio/stronghold-client/releases/download/v0.2.2-preview \
-  --sequence 2 --version 素材版本号 \
+  --output updates/releases/v0.2.3-preview \
+  --base-url https://github.com/ChlorophyTeio/stronghold-client/releases/download/v0.2.3-preview \
+  --sequence 3 --version 素材版本号 \
   --notes '本次修改说明' \
-  --apk stronghold-client-0.2.2-preview.apk \
-  --apk-version-code 8 \
+  --apk stronghold-client-0.2.3-preview.apk \
+  --apk-version-code 9 \
   --apk-certificate 0a55727d7de19ccd2d3635716cab9bcc2d3948a5fd0389984eaad70439e872f1
 ```
 
@@ -72,9 +72,9 @@ python3 tool/prepare-update-tests.py
 发布后可匿名核对 GitHub 保存的附件 SHA-256、签名清单及完整 APK 下载内容：
 
 ```bash
-python3 tool/verify-release.py --tag v0.2.1-preview \
-  --local-apk stronghold-client-0.2.1-preview.apk --download-apk \
-  --output logs/0.2.1-public-release-verification.json
+python3 tool/verify-release.py --tag v0.2.2-preview \
+  --local-apk stronghold-client-0.2.2-preview.apk --download-apk \
+  --output logs/0.2.2-public-release-verification.json
 ```
 
 此检查不使用 GitHub 凭据，不修改游戏配置或全局代理；下载只做流式哈希，不另存一份 APK。
