@@ -18,7 +18,7 @@ public final class UpgradeSmoke {
         Bundle result = new Bundle(); Activity[] activity = {null};
         try {
             UpdateStore store = new UpdateStore(runner.getTargetContext());
-            require(store.installedCode() == 7, "Upgrade test must start with 0.2.1 / code 7");
+            require(store.installedCode() == 8, "Upgrade test must start with 0.2.2 / code 8");
             runner.getTargetContext().getSharedPreferences("client_display",0).edit().putInt("left",13).putInt("right",7).commit();
             String proxyHost = arguments.getString("upgradeProxyHost", "");
             if (!proxyHost.isEmpty()) {
@@ -54,7 +54,7 @@ public final class UpgradeSmoke {
                     String value=runner.getTargetContext().getSharedPreferences("client_updates",0).getString("verifiedApk",null);
                     if(value!=null) {
                         JSONObject candidate=new JSONObject(value);
-                        if(candidate.getLong("versionCode")==8 && apk.isFile()) { metadata=candidate; break; }
+                        if(candidate.getLong("versionCode")==9 && apk.isFile()) { metadata=candidate; break; }
                     }
                     boolean[] enabled={false};
                     runner.runOnMainSync(() -> { View button=find(shown.getWindow().getDecorView(), "下载客户端 APK",true); enabled[0]=button!=null && button.isEnabled(); });
@@ -79,7 +79,7 @@ public final class UpgradeSmoke {
     public static void install(Instrumentation runner) {
         Activity shown=null;
         try {
-            require(new UpdateStore(runner.getTargetContext()).installedCode()==7,"Installer test must start with old client");
+            require(new UpdateStore(runner.getTargetContext()).installedCode()==8,"Installer test must start with old client");
             shown=start(runner);click(runner,shown,"安装已验证的 APK");clickDialog(runner,"继续安装");
             Bundle stage=new Bundle();stage.putBoolean("installerRequested",true);runner.sendStatus(1,stage);
             // Confirm only a button belonging to the SYSTEM package installer.
@@ -98,7 +98,7 @@ public final class UpgradeSmoke {
         Bundle result=new Bundle();
         try {
             long code=new UpdateStore(runner.getTargetContext()).installedCode();
-            require(code==8,"System installer did not install 0.2.2");
+            require(code==9,"System installer did not install 0.2.3");
             android.content.SharedPreferences prefs=runner.getTargetContext().getSharedPreferences("client_display",0);
             require(prefs.getInt("left",-1)==13 && prefs.getInt("right",-1)==7,"Upgrade lost manual margin settings");
             result.putLong("installedCode",code);result.putBoolean("manualMarginsPreserved",true);result.putBoolean("ok",true);

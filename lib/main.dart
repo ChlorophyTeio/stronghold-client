@@ -7,7 +7,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'resource_pack.dart';
 
-const defaultServer = 'https://test-spa.ppparty.top:8000';
+const defaultServer = 'https://spa.ppparty.top:8000';
 const gameChannel = MethodChannel('top.ppparty.stronghold/game');
 
 Future<void> main() async {
@@ -122,7 +122,7 @@ class _LauncherState extends State<Launcher> {
                 )),
               ]),
               const SizedBox(height: 24),
-              const Chip(label: Text('Android 预览版 · 0.2.2')),
+              const Chip(label: Text('Android 预览版 · 0.2.3')),
               const SizedBox(height: 12),
               const Text('本地素材，在线联机',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
@@ -134,7 +134,7 @@ class _LauncherState extends State<Launcher> {
                           '美术与音频。版本匹配的资源直接从本机读取。',
                   style: const TextStyle(height: 1.6, color: Colors.white70)),
               const SizedBox(height: 24),
-              const Text('当前连接：测试服',
+              const Text('当前连接：正式服',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               const Text('使用现有游戏账号登录', style: TextStyle(color: Colors.white70)),

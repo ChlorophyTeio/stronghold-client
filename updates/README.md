@@ -11,8 +11,8 @@ Windows 下载器及客户端代码热替换不在本次实现范围。
 - 清单使用 ECDSA P-256 / SHA-256 签名，外层为 Base64 payload/signature；签名验证原始 payload 字节。内嵌公钥固定，`sequence` 必须单调增加。资源回退通过单独按钮执行，不接受网络旧清单覆盖。
 - `0.2.0-index.json.gz` 固定记录此 APK 的内置资源基线，含模型组合哈希与路径别名。默认包包含“当前素材相对此基线的累计差异”，按内容前缀分包，目标每包不超过 16 MiB（单文件超出时独立分包）。后续客户端仅下载仍缺内容的分包，避免一更新就重下整个素材库。同一分包中的其他资源可能一并下载。
 - 下载只写应用私有 `files/updates/staging`。支持取消和 HTTP Range 续传；服务器不支持 Range 时重新完整下载。逐包 SHA-256、逐文件 SHA-256、长度、ZIP 成员名单与空间校验通过后，写入按哈希寻址的 blobs，再通过 AtomicFile 切换活动清单。
-- 每个游戏窗口仅在创建时读取活动清单，期间不会换版本。读取顺序为“下载素材 → APK 素材 → 测试服”，均要求服务器 URL 中的哈希匹配；失配或缺失仍走游戏 HTTPS。保留上一版清单及资源用于回退。保留的旧 blob 和未完成下载目前不自动回收，以免删除进行中对局的资源；后续加入引用与空间管理。
-- 不缓存替换游戏 HTML、JavaScript、API、WebSocket 或登录数据；两份字体素材 CSS 例外，属于素材清单。界面规则仍跟随测试服。
+- 每个游戏窗口仅在创建时读取活动清单，期间不会换版本。读取顺序为“下载素材 → APK 素材 → 正式服”，均要求服务器 URL 中的哈希匹配；失配或缺失仍走游戏 HTTPS。保留上一版清单及资源用于回退。保留的旧 blob 和未完成下载目前不自动回收，以免删除进行中对局的资源；后续加入引用与空间管理。
+- 不缓存替换游戏 HTML、JavaScript、API、WebSocket 或登录数据；两份字体素材 CSS 例外，属于素材清单。界面规则仍跟随正式服。
 - APK 先验签名清单中的 SHA-256，再校验包名、版本号、签名证书与当前应用一致；安装前再次检查文件。系统安装器最终校验 APK 签名并要求用户确认。不会静默安装，也不会自动退出对局。
 
 ## 代理
@@ -43,12 +43,12 @@ python3 tool/configure-updates.py ChlorophyTeio/stronghold-client
 node tool/export_resources.mjs
 node tool/verify_resources.mjs
 python3 tool/build-update.py \
-  --output updates/releases/v0.2.3-preview \
-  --base-url https://github.com/ChlorophyTeio/stronghold-client/releases/download/v0.2.3-preview \
-  --sequence 3 --version 素材版本号 \
+  --output updates/releases/v0.2.4-preview \
+  --base-url https://github.com/ChlorophyTeio/stronghold-client/releases/download/v0.2.4-preview \
+  --sequence 4 --version 素材版本号 \
   --notes '本次修改说明' \
-  --apk stronghold-client-0.2.3-preview.apk \
-  --apk-version-code 9 \
+  --apk stronghold-client-0.2.4-preview.apk \
+  --apk-version-code 10 \
   --apk-certificate 0a55727d7de19ccd2d3635716cab9bcc2d3948a5fd0389984eaad70439e872f1
 ```
 
@@ -72,9 +72,9 @@ python3 tool/prepare-update-tests.py
 发布后可匿名核对 GitHub 保存的附件 SHA-256、签名清单及完整 APK 下载内容：
 
 ```bash
-python3 tool/verify-release.py --tag v0.2.2-preview \
-  --local-apk stronghold-client-0.2.2-preview.apk --download-apk \
-  --output logs/0.2.2-public-release-verification.json
+python3 tool/verify-release.py --tag v0.2.3-preview \
+  --local-apk stronghold-client-0.2.3-preview.apk --download-apk \
+  --output logs/0.2.3-public-release-verification.json
 ```
 
 此检查不使用 GitHub 凭据，不修改游戏配置或全局代理；下载只做流式哈希，不另存一份 APK。

@@ -65,7 +65,7 @@ class GameActivity : Activity() {
         root = FrameLayout(this).apply { setBackgroundColor(Color.rgb(12, 18, 23)) }
         setContentView(root)
         status = TextView(this).apply {
-            text = "正在打开测试服…"
+            text = "正在打开正式服…"
             textSize = 16f
             setTextColor(Color.WHITE)
             setBackgroundColor(0xE6222930.toInt())
@@ -290,7 +290,7 @@ class GameActivity : Activity() {
 
             override fun onPageStarted(view: WebView, url: String?, icon: Bitmap?) {
                 generation++; ready = false
-                status.text = "正在连接测试服…"; status.visibility = View.VISIBLE
+                status.text = "正在连接正式服…"; status.visibility = View.VISIBLE
                 progress.visibility = View.VISIBLE
                 val current = generation
                 ui.postDelayed({
@@ -311,13 +311,13 @@ class GameActivity : Activity() {
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 record("加载失败 ${error.errorCode}：${request.url.path} ${error.description}")
-                if (request.isForMainFrame) showFailure("无法打开测试服：${error.description}")
+                if (request.isForMainFrame) showFailure("无法打开正式服：${error.description}")
             }
 
             override fun onReceivedHttpError(view: WebView, request: WebResourceRequest,
                 response: WebResourceResponse) {
                 record("HTTP ${response.statusCode}：${request.url.path}")
-                if (request.isForMainFrame) showFailure("测试服返回 HTTP ${response.statusCode}")
+                if (request.isForMainFrame) showFailure("正式服返回 HTTP ${response.statusCode}")
             }
 
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
@@ -444,7 +444,7 @@ class GameActivity : Activity() {
     }
 
     private fun menu() {
-        AlertDialog.Builder(this).setTitle("客户端设置 · 测试服")
+        AlertDialog.Builder(this).setTitle("客户端设置 · 正式服")
             .setItems(arrayOf("继续游戏", "屏幕边距", "重新加载", "切换为纯在线资源并重载", "查看 / 复制诊断", "返回启动器", "更新设置")) { _, which ->
                 when (which) {
                     6 -> startActivity(Intent(this, UpdateActivity::class.java))

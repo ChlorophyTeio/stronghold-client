@@ -153,7 +153,7 @@ public final class UpdateSmoke {
     }
     private static WebResourceRequest request(UpdateStore.Release release, boolean range) throws JSONException {
         String hash = release.getEntries().getJSONObject("/assets/__update_test__.png").getJSONArray("hashes").getString(0);
-        Uri uri = Uri.parse("https://test-spa.ppparty.top:8000/assets/~" + hash + "/__update_test__.png");
+        Uri uri = Uri.parse("https://spa.ppparty.top:8000/assets/~" + hash + "/__update_test__.png");
         return new WebResourceRequest() {
             public Uri getUrl() { return uri; }
             public boolean isForMainFrame() { return false; }

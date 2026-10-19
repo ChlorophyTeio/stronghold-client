@@ -5,7 +5,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AssetRulesTest {
-    private val server = URI("https://test-spa.ppparty.top:8000/")
+    private val server = URI("https://spa.ppparty.top:8000/")
 
     @Test fun hashesArePreservedAndAudioPathsResolve() {
         val art = AssetRules.lookup("${server}assets/~0123456789abcdef/avatar.png", server)!!
@@ -19,8 +19,9 @@ class AssetRulesTest {
     @Test fun foreignOriginsAndUnsafeOrPlainPathsNeverUsePack() {
         for (url in listOf(
             "https://other.example:8000/assets/~0123456789abcdef/avatar.png",
-            "http://test-spa.ppparty.top:8000/assets/~0123456789abcdef/avatar.png",
-            "https://test-spa.ppparty.top/assets/~0123456789abcdef/avatar.png",
+            "https://test-spa.ppparty.top:8000/assets/~0123456789abcdef/avatar.png",
+            "http://spa.ppparty.top:8000/assets/~0123456789abcdef/avatar.png",
+            "https://spa.ppparty.top/assets/~0123456789abcdef/avatar.png",
             "${server}assets/avatar.png", "${server}api/auth/me",
             "${server}assets/~0123456789abcdef/avatar.png?q=1",
             "${server}assets/~0123456789abcdef/%2e%2e/avatar.png",
@@ -41,8 +42,8 @@ class AssetRulesTest {
         }
     }
 
-    @Test fun releaseServerIsFixedToSpaTest() {
-        assertEquals("https://test-spa.ppparty.top:8000/", ServerConfig.ORIGIN)
+    @Test fun releaseServerIsFixedToProduction() {
+        assertEquals("https://spa.ppparty.top:8000/", ServerConfig.ORIGIN)
     }
 
     @Test fun onlyHttpsOriginsAreAccepted() {

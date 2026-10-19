@@ -16,10 +16,10 @@ import java.util.*;
 import java.util.concurrent.*;
 
 /** Platform-only smoke runner for the actual minified release APK. Only GETs
- * reach the LAN spa-test backend. The transport adapter exists in the test APK
+ * reach the LAN production backend. The transport adapter exists in the test APK
  * because this executor cannot directly use the public IPv6 endpoint. */
 public final class NativeSmokeInstrumentation extends Instrumentation {
-    private static final String ORIGIN = "https://test-spa.ppparty.top:8000/";
+    private static final String ORIGIN = "https://spa.ppparty.top:8000/";
     private boolean updatesOnly;
     private boolean updatesOnline;
     private String upgradeMode;
@@ -64,7 +64,7 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
                     @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                         WebResourceResponse local = original.shouldInterceptRequest(view, request);
                         if (local != null) return local;
-                        if (!"test-spa.ppparty.top".equals(request.getUrl().getHost())) return null;
+                        if (!"spa.ppparty.top".equals(request.getUrl().getHost())) return null;
                         if (!"GET".equals(request.getMethod())) throw new AssertionError("Smoke test must not mutate server state");
                         String path = request.getUrl().getEncodedPath();
                         if (request.getUrl().getEncodedQuery() != null) path += "?" + request.getUrl().getEncodedQuery();
@@ -109,7 +109,7 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
             Thread.sleep(1000);
             saveScreenshot("native-settings.png");
             eval("document.querySelector('[data-sp-client-settings] a').click()");
-            await(5000, () -> { android.view.accessibility.AccessibilityNodeInfo node = getUiAutomation().getRootInActiveWindow(); return node != null && !node.findAccessibilityNodeInfosByText("客户端设置 · 测试服").isEmpty(); });
+            await(5000, () -> { android.view.accessibility.AccessibilityNodeInfo node = getUiAutomation().getRootInActiveWindow(); return node != null && !node.findAccessibilityNodeInfosByText("客户端设置 · 正式服").isEmpty(); });
             saveScreenshot("native-client-settings.png");
             result.putBoolean("settingsEntry", true);
             testMargins();
@@ -142,12 +142,12 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
             require(audioResult.getInt("status") == 206 && audioResult.getInt("bytes") == 8
                 && "apk-native".equals(audioResult.getString("source")), "Pack range response mismatch: " + audioResult);
             result.putString("rangeResponse", audioResult.toString());
-            require(decode(eval("location.origin")).equals("https://test-spa.ppparty.top:8000"), "Server override was accepted");
-            result.putBoolean("fixedTestServer", true);
+            require(decode(eval("location.origin")).equals("https://spa.ppparty.top:8000"), "Server override was accepted");
+            result.putBoolean("fixedProductionServer", true);
             result.putBoolean("ok", true);
             try (Writer out = new OutputStreamWriter(new FileOutputStream(new File(getTargetContext().getExternalFilesDir(null), "native-smoke-result.json")), "UTF-8")) {
                 out.write(new JSONObject().put("ok", true).put("renderedLoads", 3).put("landscape", true)
-                    .put("fixedTestServer", true).put("manualMargins", true).put("settingsEntry", true).put("safeArea", true).put("reverseLandscape", true).put("rangeResponse", audioResult).toString());
+                    .put("fixedProductionServer", true).put("manualMargins", true).put("settingsEntry", true).put("safeArea", true).put("reverseLandscape", true).put("rangeResponse", audioResult).toString());
             }
             finish(Activity.RESULT_OK, result);
         } catch (Throwable error) {
@@ -268,9 +268,9 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
         byte[] data;
         int code;
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress("192.168.130.10", 9012), 5000);
+            socket.connect(new InetSocketAddress("192.168.130.10", 9011), 5000);
             socket.setSoTimeout(15000);
-            socket.getOutputStream().write(("GET " + path + " HTTP/1.1\r\nHost: 192.168.130.10:9012\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n").getBytes("US-ASCII"));
+            socket.getOutputStream().write(("GET " + path + " HTTP/1.1\r\nHost: 192.168.130.10:9011\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n").getBytes("US-ASCII"));
             InputStream input = new BufferedInputStream(socket.getInputStream());
             code = Integer.parseInt(line(input).split(" ")[1]);
             for (;;) {

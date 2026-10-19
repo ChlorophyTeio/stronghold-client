@@ -39,7 +39,7 @@ class UpdateActivity : Activity() {
             insets
         }
         setContentView(scroll); scroll.requestApplyInsets()
-        text("客户端更新 · 测试服", 22f)
+        text("客户端更新 · 正式服", 22f)
         text("素材更新下次进入游戏生效。游戏连接不经过更新代理。", 14f)
         status = text(if (source.optString("repository").isBlank()) "尚未配置更新源：等待建立 GitHub 仓库。" else "更新源：${source.getString("repository")} · preview", 16f)
         text("当前素材：${store.active()?.label ?: "APK 内置"}", 14f)
@@ -83,7 +83,7 @@ class UpdateActivity : Activity() {
     }
     private fun check() = launch { net ->
         val repo = source.optString("repository")
-        require(repo.matches(Regex("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"))) { "尚未配置更新源，当前仍可正常进入测试服。" }
+        require(repo.matches(Regex("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"))) { "尚未配置更新源，当前仍可正常进入正式服。" }
         message("正在检查签名更新清单…")
         val releases = JSONArray(String(net.bytes("https://api.github.com/repos/$repo/releases?per_page=20", 2 * 1024 * 1024), Charsets.UTF_8))
         var manifestUrl: String? = null
