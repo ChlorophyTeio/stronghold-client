@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+CLIENT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+export JAVA_HOME="$CLIENT_ROOT/.toolchain/jdk"
+export ANDROID_HOME="$CLIENT_ROOT/.toolchain/android-sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export ANDROID_USER_HOME="$CLIENT_ROOT/.toolchain/android-user"
+export GRADLE_USER_HOME="$CLIENT_ROOT/.gradle"
+export PUB_CACHE="$CLIENT_ROOT/.pub-cache"
+export FLUTTER_SUPPRESS_ANALYTICS=true
+export DART_SUPPRESS_ANALYTICS=true
+export CI=true
+export PATH="$CLIENT_ROOT/.toolchain/flutter/bin:$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+if [[ -L "$CLIENT_ROOT/build" && "$(readlink -- "$CLIENT_ROOT/build")" == /tmp/spa-flutter-build ]]; then
+  mkdir -p /tmp/spa-flutter-build
+fi
+cd "$CLIENT_ROOT"
+exec flutter "$@"

@@ -1,0 +1,31 @@
+.dart_tool/
+.flutter-plugins*
+.toolchain/
+.pub-cache/
+.gradle/
+build/
+.build-shfs-backup/
+logs/
+assets/game/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+*.apk
+*.sha256
+.publish-apk-*/
+stronghold-client-*.zip
+updates/releases/
+android/app/src/androidTest/assets/update-fixtures/
+tool/__pycache__/
+
+# Local editor state and private environment configuration
+*.iml
+.idea/
+.env
+.env.*
+*.p12
+*.pfx
+
+# The local build cache is a symlink, so exclude the path itself.
+/build
