@@ -23,7 +23,7 @@
 - 实际 0.2.1 release APK 在 Android 16 模拟器覆盖安装成功；完整基线验签、损坏拒绝、取消、原子激活、回退、旧清单拒绝、下载资源 Range 读取、对局资源版本保持、代理隔离及已配置更新源界面均通过。
 - OpenSSL 验证 Release 清单签名通过；清单中的 APK URL、版本号及 SHA-256 与交付包一致。
 
-本机记录位于 `logs/0.2.1-*`，包括构建、签名、分包与运行验收。公开上传及真实 GitHub 下载验收结果在发布完成后补充。
+本机记录位于 `logs/0.2.1-*`，包括构建、签名、分包与运行验收。公开 Release 及真实 GitHub 下载验收均已完成，见下文。
 
 ## 范围
 
@@ -32,3 +32,15 @@
 正式手机安装、玩家实际代理、系统升级安装及整局联机仍需验收。本次不宣称 Windows 客户端或 Windows 更新器可用。
 
 更新与发布维护步骤见 [updates/README.md](updates/README.md)。
+
+## GitHub 发布与在线验收
+
+[首个公开 Release：v0.2.1-preview](https://github.com/ChlorophyTeio/stronghold-client/releases/tag/v0.2.1-preview) 已发布为预览版，源码 tag 指向 `8e543044ea3cfd7488cf563c3979abfa3e4986e3`。四个附件为 APK、APK 校验和、签名更新清单及清单校验和。GitHub 返回的全部附件大小与 SHA-256 均与已验证本地文件一致。
+
+通过公开地址匿名完整下载 APK 并流式计算 SHA-256，通过：632,513,516 字节，`d7b341c27e8bbb1c8daa2d9fccb60bc84f4289503db4094f7f7551df3379fea2`。OpenSSL 对公开签名清单验签通过。可复用 `tool/verify-release.py` 执行同样检查，无需 GitHub 凭据。
+
+Android 16 模拟器使用实际发布 APK、默认直连配置和正式更新界面，直接访问真实 GitHub API 与附件重定向，成功验证清单签名并启用 sequence 1 的 `baseline-97a5a4d8` 素材版本。本检查未替换更新下载器、未关闭 TLS 校验。记录：`logs/0.2.1-github-runtime.log`；截图：`logs/0.2.1-runtime/update-online.png`。同一 APK 的三次游戏渲染、正反横屏、挖孔避让、滑条保存/恢复及音频 Range 回归通过。
+
+网络异常记录：上传命令末尾返回 422 同名附件存在；随后确认 GitHub 保存的 APK 已完整上传且 SHA-256 正确，未重复覆盖文件。第一次匿名完整下载未通过校验，重试后全字节读取与哈希核对通过；保留两次日志以便追踪传输问题。GitHub 网页授权第一次因连接中断未保存凭据，重新授权后成功。
+
+本机额外提供 `stronghold-client-0.2.1-verified-d7b341c2.zip` 及校验和，供文件传输时使用；GitHub 仅上传一份 APK，避免重复分发同一安装包。旧版 0.2.0 APK/ZIP 及校验和已清理，内置素材基线元数据、素材快照、密钥及历史验收记录均保留。

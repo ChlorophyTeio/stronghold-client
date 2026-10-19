@@ -66,3 +66,15 @@ python3 tool/prepare-update-tests.py
 前者验证增量包、组合哈希保留、OpenSSL 验签、篡改拒绝和源文件变化拒绝。后者用本机私钥生成仅用于 androidTest 的离线签名夹具（目录已忽略，不进正式 APK），供 NativeSmokeInstrumentation 的 `updatesOnly=true` 模式验证：无效签名、损坏包、取消、原子激活、活动对局版本保持、回退、反重放、代理不改变全局网络配置及已配置/未配置更新源时的界面。JUnit 网络测试使用仅测试客户端信任的本地 TLS 证书；正式下载器保持系统证书校验。
 
 正式公开前还需在小米真机、实际 GitHub Release、玩家使用的代理和系统安装器上完成端到端验收。模拟器与本地 TLS 测试不能替代这些外部条件。
+
+## 公开附件验收
+
+发布后可匿名核对 GitHub 保存的附件 SHA-256、签名清单及完整 APK 下载内容：
+
+```bash
+python3 tool/verify-release.py --tag v0.2.1-preview \
+  --local-apk stronghold-client-0.2.1-preview.apk --download-apk \
+  --output logs/0.2.1-public-release-verification.json
+```
+
+此检查不使用 GitHub 凭据，不修改游戏配置或全局代理；下载只做流式哈希，不另存一份 APK。
