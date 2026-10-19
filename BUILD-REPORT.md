@@ -24,7 +24,16 @@
 
 原生显示验收记录：`logs/0.2.2-game-runtime.log`；截图：`logs/0.2.2-runtime/native-title-0.png`、`native-margin-default.png`、`native-reverse.png`。
 
-公开发布与旧客户端应用内升级验收完成后追加记录。升级测试从 code 7 出发，使用旧版的实际下载器和系统安装器；测试代码仅在独立 Android 测试 APK 内，不进入交付包。
+## 公开发布与旧版覆盖升级
+
+- [v0.2.2-preview](https://github.com/ChlorophyTeio/stronghold-client/releases/tag/v0.2.2-preview) 已公开；四个附件均核对服务端大小及 SHA-256。匿名完整下载 APK 后再次计算 SHA-256，通过。记录：`logs/0.2.2-public-release-verification.json`。
+- Android 16 模拟器从实际 0.2.1 / code 7 出发，使用旧版更新器检查公开 Release、验证签名清单、完整下载并校验 632,513,672 字节 APK；哈希与发布文件一致。记录：`logs/0.2.2-old-client-download-proxy.log`。
+- 测试环境直连 github.com 超时，因此通过已有“仅更新”HTTP 代理完成下载；未修改全局网络或游戏代理，也未降低 TLS 校验。代理地址仅在忽略的本地测试日志中，不进入源码或 APK。
+- 点击旧版“安装已验证的 APK”，由系统安装器确认覆盖升级；包版本变为 code 8。升级时旧进程和其 instrumentation 被系统终止，主机独立检查安装结果，并启动新的测试进程验证旧的左右边距 13 / 7 保留。记录：`logs/0.2.2-system-install.log`、`logs/0.2.2-after-upgrade-package.txt`、`logs/0.2.2-upgrade-verification.log`。
+- 覆盖安装后再次通过完整显示回归：真实模拟挖孔、根视图和 WebView 铺满、网页安全区归零、三次渲染、正反横屏、手动边距调整及恢复默认、设置入口和音频 Range。记录：`logs/0.2.2-upgraded-game-runtime.log`；截图：`logs/0.2.2-upgrade-runtime/`。
+- 升级测试代码只在独立 Android 测试 APK 内，不进入交付包；代理配置参数也仅供测试驱动使用。
+
+本地另提供 `stronghold-client-0.2.2-verified-25c3f925.zip`，内含同一已验证 APK 及 SHA256SUMS，供文件传输后解压安装。
 
 ## 范围
 

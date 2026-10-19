@@ -14,16 +14,35 @@ import org.json.JSONObject;
 
 /** Drive the installed OLD client, including its real downloader and installer. */
 public final class UpgradeSmoke {
-    public static void download(Instrumentation runner) {
+    public static void download(Instrumentation runner, Bundle arguments) {
         Bundle result = new Bundle(); Activity[] activity = {null};
         try {
             UpdateStore store = new UpdateStore(runner.getTargetContext());
             require(store.installedCode() == 7, "Upgrade test must start with 0.2.1 / code 7");
             runner.getTargetContext().getSharedPreferences("client_display",0).edit().putInt("left",13).putInt("right",7).commit();
+            String proxyHost = arguments.getString("upgradeProxyHost", "");
+            if (!proxyHost.isEmpty()) {
+                runner.getTargetContext().getSharedPreferences("client_updates",0).edit()
+                    .putString("mode","http").putString("host",proxyHost)
+                    .putInt("port",Integer.parseInt(arguments.getString("upgradeProxyPort")))
+                    .putString("user","").putString("password","").commit();
+            }
             activity[0] = start(runner);
             Activity shown = activity[0];
-            click(runner, shown, "检查更新 / 测试连接");
-            waitFor(90000, () -> has(runner, shown, "已验证更新："));
+            boolean checked=false;
+            for(int attempt=0;attempt<3 && !checked;attempt++) {
+                click(runner, shown, "检查更新 / 测试连接");
+                Thread.sleep(700);
+                long checkDeadline=System.currentTimeMillis()+90000;
+                while(System.currentTimeMillis()<checkDeadline) {
+                    if(has(runner,shown,"已验证更新：")){checked=true;break;}
+                    boolean[] idle={false};
+                    runner.runOnMainSync(() -> idle[0]=find(shown.getWindow().getDecorView(),"检查更新 / 测试连接",true).isEnabled());
+                    if(idle[0])break;
+                    Thread.sleep(300);
+                }
+            }
+            require(checked,"Old client could not check GitHub: "+text(runner,shown));
             File apk = new File(runner.getTargetContext().getFilesDir(), "updates/client.apk");
             JSONObject metadata = null;
             for(int attempt=0; attempt<3 && metadata==null; attempt++) {

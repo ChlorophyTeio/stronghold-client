@@ -23,14 +23,15 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
     private boolean updatesOnly;
     private boolean updatesOnline;
     private String upgradeMode;
+    private Bundle upgradeArguments;
     private boolean requireCutout;
     private Activity activity;
     private WebView web;
 
-    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); updatesOnly = "true".equals(arguments.getString("updatesOnly")); updatesOnline = "true".equals(arguments.getString("updatesOnline")); upgradeMode = arguments.getString("upgradeMode", ""); requireCutout = "true".equals(arguments.getString("requireCutout")); start(); }
+    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); upgradeArguments = arguments; updatesOnly = "true".equals(arguments.getString("updatesOnly")); updatesOnline = "true".equals(arguments.getString("updatesOnline")); upgradeMode = arguments.getString("upgradeMode", ""); requireCutout = "true".equals(arguments.getString("requireCutout")); start(); }
 
     @Override public void onStart() {
-        if ("download".equals(upgradeMode)) { UpgradeSmoke.download(this); return; }
+        if ("download".equals(upgradeMode)) { UpgradeSmoke.download(this, upgradeArguments); return; }
         if ("verify".equals(upgradeMode)) { UpgradeSmoke.verify(this); return; }
         if ("install".equals(upgradeMode)) { UpgradeSmoke.install(this); return; }
         if (updatesOnline) { UpdateSmoke.online(this); return; }
