@@ -230,7 +230,9 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
     private void reopenMenuAfterMarginDialog() throws Exception {
         await(5000, () -> slider(getUiAutomation().getRootInActiveWindow(), "左侧边距") == null);
         getUiAutomation().waitForIdle(300, 5000);
-        getUiAutomation().performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
+        // Reopen through the same settings link used by players. Injected global
+        // back gestures can be dropped while Android restores dialog focus.
+        eval("document.querySelector('[data-sp-client-settings] a').click()");
         await(5000, () -> node("屏幕边距") != null);
     }
 
