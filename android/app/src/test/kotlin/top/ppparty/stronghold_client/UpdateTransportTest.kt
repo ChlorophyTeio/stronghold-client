@@ -11,6 +11,74 @@ import java.io.File
 import java.net.ProxySelector
 
 class UpdateTransportTest {
+    @Test fun cancellationStopsAllFourConcurrentRequests() {
+        server().use { origin ->
+            repeat(4) { origin.enqueue(MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.NO_RESPONSE)) }
+            val net = UpdateTransport(UpdateNetwork(), builder())
+            val workers = java.util.concurrent.Executors.newFixedThreadPool(4)
+            try {
+                val futures = (0 until 4).map { number -> workers.submit<Boolean> {
+                    try { net.bytes(origin.url("/blocked-$number").toString(), 100); false }
+                    catch (_: java.io.IOException) { true }
+                } }
+                repeat(4) { assertNotNull(origin.takeRequest(5, java.util.concurrent.TimeUnit.SECONDS)) }
+                net.cancel()
+                futures.forEach { assertTrue(it.get(3, java.util.concurrent.TimeUnit.SECONDS)) }
+            } finally { net.cancel(); workers.shutdownNow() }
+        }
+    }
+    @Test fun systemHttpProxyIsUsedOnlyByOptedInUpdaterWithoutSavedCredentials() {
+        val original = ProxySelector.getDefault()
+        MockWebServer().use { proxy ->
+            val tls = HandshakeCertificates.Builder().heldCertificate(certificate).build()
+            proxy.useHttps(tls.sslSocketFactory(), true)
+            proxy.enqueue(MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.UPGRADE_TO_SSL_AT_END))
+            proxy.enqueue(MockResponse().setBody("system-proxy"))
+            proxy.start()
+            var selections = 0
+            val selector = object : ProxySelector() {
+                override fun select(uri: java.net.URI): List<java.net.Proxy> {
+                    // The JVM may also ask for socket:// routes while opening a
+                    // direct TCP socket; Android's Wi-Fi HTTP proxy is URL based.
+                    if (uri.scheme != "https") return listOf(java.net.Proxy.NO_PROXY)
+                    selections++
+                    return listOf(java.net.Proxy(java.net.Proxy.Type.HTTP,
+                        java.net.InetSocketAddress(proxy.hostName, proxy.port)))
+                }
+                override fun connectFailed(uri: java.net.URI, address: java.net.SocketAddress, error: java.io.IOException) {}
+            }
+            try {
+                ProxySelector.setDefault(selector) // Test fixture only; production never sets it.
+                val net = UpdateTransport(UpdateNetwork(mode="system", user="saved-manual-user", password="saved-manual-secret"), builder())
+                assertEquals("system-proxy", String(net.bytes("https://localhost/file", 100)))
+                assertTrue(selections > 0)
+                val connect = proxy.takeRequest()
+                assertEquals("CONNECT", connect.method)
+                assertNull(connect.getHeader("Proxy-Authorization"))
+                val request = proxy.takeRequest()
+                assertNull(request.getHeader("Proxy-Authorization"))
+                assertNull(request.getHeader("Cookie")); assertNull(request.getHeader("Authorization"))
+                assertSame(selector, ProxySelector.getDefault())
+                server().use { origin ->
+                    origin.enqueue(MockResponse().setBody("direct"))
+                    val before = selections
+                    assertEquals("direct", String(UpdateTransport(UpdateNetwork(), builder()).bytes(origin.url("/file").toString(), 100)))
+                    assertEquals(before, selections)
+                }
+            } finally { ProxySelector.setDefault(original) }
+        }
+    }
+    @Test fun systemModeUsesDirectWhenSystemHasNoProxy() {
+        val original = ProxySelector.getDefault()
+        try {
+            ProxySelector.setDefault(null)
+            server().use { origin ->
+                origin.enqueue(MockResponse().setBody("no-system-proxy"))
+                assertEquals("no-system-proxy", String(UpdateTransport(UpdateNetwork(mode="system"), builder()).bytes(origin.url("/file").toString(), 100)))
+                assertNull(ProxySelector.getDefault())
+            }
+        } finally { ProxySelector.setDefault(original) }
+    }
     private val certificate = HeldCertificate.Builder().addSubjectAlternativeName("localhost").addSubjectAlternativeName(java.net.InetAddress.getLoopbackAddress().hostName).addSubjectAlternativeName(java.net.InetAddress.getLoopbackAddress().hostAddress).addSubjectAlternativeName(java.net.InetAddress.getByName("localhost").canonicalHostName).build()
     private fun builder(): OkHttpClient.Builder {
         val trust = HandshakeCertificates.Builder().addTrustedCertificate(certificate.certificate).build()

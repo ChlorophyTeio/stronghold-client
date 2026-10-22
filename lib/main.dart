@@ -132,7 +132,7 @@ class _LauncherState extends State<Launcher> {
                 )),
               ]),
               const SizedBox(height: 24),
-              const Chip(label: Text('Android 轻量版 · 0.3.1')),
+              const Chip(label: Text('Android 轻量版 · 0.3.2')),
               const SizedBox(height: 12),
               const Text('轻量安装，素材独立下载',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),

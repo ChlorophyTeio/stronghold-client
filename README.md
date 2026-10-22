@@ -1,6 +1,6 @@
 # 卫戍协议 Flutter 客户端
 
-[下载 Android 轻量版 0.3.1](https://github.com/ChlorophyTeio/stronghold-client/releases/tag/v0.3.1-preview) · [更新维护说明](updates/README.md) · [构建验收](BUILD-REPORT.md)
+[下载 Android 轻量版 0.3.2](https://github.com/ChlorophyTeio/stronghold-client/releases/tag/v0.3.2-preview) · [更新维护说明](updates/README.md) · [构建验收](BUILD-REPORT.md)
 
 固定连接正式服 `https://spa.ppparty.top:8000/`，沿用现有游戏登录界面、账号 Cookie 和 WSS 联机。玩家不能更改游戏服务器。游戏页面和规则跟随服务器，客户端版本独立。
 
@@ -11,6 +11,16 @@ APK 约 44 MiB，只包含程序、图标和空的素材索引，不包含游戏
 仅更新代理支持直连、HTTP、SOCKS5 和 GitHub 加速前缀，不改变游戏网络。素材按 SHA-256 校验并保存在应用私有目录，游戏只使用 URL 内容哈希匹配的本地文件；缺失或失配交由游戏 HTTPS 在线加载。32 份 OBJ 模型保持在线加载，以兼容旧客户端的素材白名单。不缓存或替换页面、JavaScript、模拟引擎和账号接口。
 
 从旧版覆盖升级无需卸载，可保留登录会话、手动边距、代理和已下载素材。新版完整资源清单也包含原来 APK 内置的素材，补齐轻量安装所需内容。请保留 GitHub 历史资源附件，最新清单会引用旧分包，避免重复上传。
+
+## 并发下载、自动代理与 ZIP 导入
+
+素材最多 4 包并发下载，显示总体百分比、已下载/总大小、已就绪分包数和 MiB/s；校验、解包单独显示阶段。取消会停止全部请求，重试复用分包和已验证文件。空间估算只预留最多四个并发分包，不要求把全部下载包同时存一份。
+
+「更新代理设置」新增「HTTP 自动代理（跟随 Wi-Fi 系统设置）」。更新器只读取系统代理，未配置时直连；不修改系统、全局 ProxySelector 或 WebView 配置。原有手动 HTTP、SOCKS5、加速前缀继续保留，自动模式不会使用残留的手动代理账号密码。
+
+自己打包的 ZIP 请直接在根目录放 `assets/` 和 `fonts/`，不要额外套一层工程目录。先「检查更新」保存签名索引，然后「导入 ZIP 素材包」从文件管理器选择。索引会留在本机，之后可离线导入。仅接受与可信索引匹配的内容，路径穿越、损坏或版本不匹配不会替换当前素材。未知文件不导入，32 份 OBJ 保持在线加载。
+
+完整 ZIP 可在根目录另放官方签名 `update-preview.json`，也支持直接导入 GitHub `resources-*.zip` 分包。部分导入只缓存已验证文件，继续下载时复用，全部就绪后原子启用；游戏仍需联网，原登录界面保留。此 Release 不额外上传完整大 ZIP，优先支持用户自打包目录。
 
 ## 游戏窗口
 

@@ -1,6 +1,6 @@
 # Android 更新发布与维护
 
-0.2.1 起更新源为公开仓库 [ChlorophyTeio/stronghold-client](https://github.com/ChlorophyTeio/stronghold-client)。当前 0.3.1 游戏连接固定为正式服；玩家不能更改游戏服务器。
+0.2.1 起更新源为公开仓库 [ChlorophyTeio/stronghold-client](https://github.com/ChlorophyTeio/stronghold-client)。当前 0.3.2 游戏连接固定为正式服；玩家不能更改游戏服务器。
 入口为启动页“更新设置”，以及游戏“设置 → 客户端设置 → 更新设置”。
 Windows 下载器及客户端代码热替换不在本次实现范围。
 
@@ -43,14 +43,14 @@ python3 tool/configure-updates.py ChlorophyTeio/stronghold-client
 node tool/export_resources.mjs
 node tool/verify_resources.mjs
 python3 tool/build-update.py \
-  --output updates/releases/v0.3.1-preview \
-  --base-url https://github.com/ChlorophyTeio/stronghold-client/releases/download/v0.3.1-preview \
+  --output updates/releases/v0.3.2-preview \
+  --base-url https://github.com/ChlorophyTeio/stronghold-client/releases/download/v0.3.2-preview \
   --full --exclude-obj \
-  --reuse-manifest updates/releases/v0.3.1-resources/update-preview-sequence4.json \
-  --sequence 5 --version game-0.3.1-light-complete \
+  --reuse-manifest updates/releases/v0.3.1-preview/update-preview.json \
+  --sequence 6 --version game-0.3.1-light-complete \
   --notes '本次修改说明' \
-  --apk stronghold-client-0.3.1-preview.apk \
-  --apk-version-code 10 \
+  --apk stronghold-client-0.3.2-preview.apk \
+  --apk-version-code 11 \
   --apk-certificate 0a55727d7de19ccd2d3635716cab9bcc2d3948a5fd0389984eaad70439e872f1
 ```
 
@@ -94,3 +94,13 @@ python3 tool/verify-release.py --tag v0.2.3-preview \
 元数据导出现在写入 updates/resource-index.json，APK 仅打包自动生成的空索引。`--exclude-obj` 将 32 份 OBJ 文件留给游戏在线加载。`--base-index` 只用于明确指定的旧版测试或历史包，当前轻量发布必须使用完整清单。
 
 GitHub 实际 Releases 列表可能将同版本素材 Release 排在轻量版前，旧客户端只读取第一个 update-preview.json。因此 v0.3.1-resources 的通用更新入口同步为 sequence 5，原 sequence 4 签名清单以 update-preview-sequence4.json 归档；原分包保持不变。发布后必须走一次旧客户端的列表选择及验签流程，不能只验证新 tag。新版本应保持清单序号递增，包和已发布 APK 不原地修改。
+
+## 客户端 0.3.2（2026-10-22）
+
+包名/签名不变，versionCode 11，清单 sequence 6，素材内容仍为游戏 0.3.1。新增 system 模式读取系统 ProxySelector，设置仅存在于更新器的 OkHttpClient，不更改全局选择器或 WebView。
+
+资源下载为最多四路有界预取，校验/解包/激活由一个线程串行执行，避免文件写入和元数据竞争；所有活动网络请求一起响应取消。分包按完成顺序处理，仅同时保留四个候选包。总体进度按本次实际缺少的包累计，续传已有字节计入进度，显示速度和校验阶段。已完成的内容按哈希复用。
+
+手动导入使用 Android 文件选择器，不申请广泛存储权限。自制 ZIP 根目录放 assets/fonts，首先检查更新以持久保存可信签名索引；也可导入带官方签名清单的离线包或单个 GitHub 分包。ZIP 仅在应用私有临时目录读取，路径、条目、大小、清单签名、包和文件哈希均检查。只将通过校验的素材保存为内容哈希命名的 blob；部分导入不切换活动清单，完整后原子启用。导入过程不发起网络请求，原文件不修改。
+
+导入器选择已检查/活动/包内签名索引中最新的可信版本，因此旧离线包可以复用相同内容，不把活动素材降级。大于 2 GB、分卷或超过 ZIP 普通目录条目限制的导入包不受支持；当前素材目录 ZIP 在限制内。完整官方包并非必需，按用户需求本次仅发布 APK 与签名清单。

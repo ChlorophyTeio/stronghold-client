@@ -84,9 +84,10 @@ public final class UpdateSmoke {
             try { store.apply(second, copy(runner, 2, false), progress); throw new AssertionError("Replay accepted after rollback"); }
             catch (IllegalArgumentException expected) {}
             result.putBoolean("signedTransactions", true);
+            testZipImports(runner, result);
             ProxySelector selector = ProxySelector.getDefault();
             CookieHandler cookies = CookieHandler.getDefault();
-            for (String mode : Arrays.asList("direct", "http", "socks", "accelerator")) {
+            for (String mode : Arrays.asList("direct", "http", "socks", "accelerator", "system")) {
                 runner.getTargetContext().getSharedPreferences("client_updates", 0).edit()
                     .putString("mode", mode).putString("host", "127.0.0.1").putInt("port", 3128)
                     .putString("prefix", "https://example.com").commit();
@@ -108,6 +109,22 @@ public final class UpdateSmoke {
             });
             Thread.sleep(500);
             runner.runOnMainSync(() -> require(find(shown.getWindow().getDecorView(), expectedSource) != null, "Update source UI failed"));
+            File chosen = new File(runner.getTargetContext().getCacheDir(), "self-packed-materials.zip");
+            UpdateStore uiStore = new UpdateStore(runner.getTargetContext());
+            JSONObject importedEntries = uiStore.active().getEntries();
+            String path = importedEntries.keys().next();
+            writeZip(chosen, new String[]{path.substring(1)}, new byte[][]{read(new FileInputStream(uiStore.file(importedEntries.getJSONObject(path))))});
+            runner.runOnMainSync(() -> ((UpdateActivity) shown).onActivityResult(642, Activity.RESULT_OK,
+                new Intent().setData(Uri.fromFile(chosen))));
+            long importDeadline = System.currentTimeMillis() + 15000;
+            boolean[] imported = {false};
+            while (!imported[0] && System.currentTimeMillis() < importDeadline) {
+                runner.runOnMainSync(() -> imported[0] = find(shown.getWindow().getDecorView(), "已导入并启用") != null);
+                Thread.sleep(100);
+            }
+            require(imported[0], "ZIP selection callback did not import materials");
+            runner.runOnMainSync(() -> require(find(shown.getWindow().getDecorView(), "100.0%") != null, "Download/import progress UI missing"));
+            chosen.delete(); result.putBoolean("zipSelectionUi", true); result.putBoolean("visibleProgress", true);
             result.putBoolean("updateUi", true); result.putBoolean("ok", true);
         } catch (Throwable error) {
             result.putString("error", android.util.Log.getStackTraceString(error));
@@ -119,6 +136,64 @@ public final class UpdateSmoke {
         }
         runner.finish(result.getBoolean("ok") ? Activity.RESULT_OK : Activity.RESULT_CANCELED, result);
     }
+    private static void testZipImports(Instrumentation runner, Bundle result) throws Exception {
+        UpdateStore store = new UpdateStore(runner.getTargetContext());
+        remove(store.getRoot());
+        runner.getTargetContext().getSharedPreferences("client_updates", 0).edit().clear().commit();
+        store = new UpdateStore(runner.getTargetContext());
+        UpdateStore.Release first = store.parse(read(runner.getContext().getAssets().open("update-fixtures/1/update-preview.json")));
+        UpdateStore.Release second = store.parse(read(runner.getContext().getAssets().open("update-fixtures/2/update-preview.json")));
+        String packName = first.getJson().getJSONArray("packs").getJSONObject(0).getString("url");
+        packName = packName.substring(packName.lastIndexOf('/') + 1);
+        byte[] packed = read(runner.getContext().getAssets().open("update-fixtures/1/" + packName));
+        File archive = new File(store.getStaging(), "selected.zip");
+        Function1<TransferProgress, Unit> progress = value -> Unit.INSTANCE;
+        writeZip(archive, new String[]{"update-preview.json", packName}, new byte[][]{first.getEnvelope(), packed});
+        require(store.importZip(archive, null, () -> Unit.INSTANCE, progress).contains("已导入并启用"), "Full offline import failed");
+        require(store.active().getSequence() == 1, "Offline package did not activate");
+        writeZip(archive, new String[]{"../escape.png"}, new byte[][]{new byte[]{1}});
+        try { store.importZip(archive, second, () -> Unit.INSTANCE, progress); throw new AssertionError("Traversal accepted"); }
+        catch (Exception expected) { require(expected instanceof IllegalArgumentException || expected instanceof java.util.zip.ZipException, "Unexpected traversal rejection"); }
+        require(store.active().getSequence() == 1, "Invalid ZIP changed active version");
+        writeZip(archive, new String[]{"assets/__update_test__.png"}, new byte[][]{"fixture-version-bad".getBytes("UTF-8")});
+        try { store.importZip(archive, second, () -> Unit.INSTANCE, progress); throw new AssertionError("Corrupt raw art accepted"); }
+        catch (IllegalArgumentException expected) {}
+        writeZip(archive, new String[]{"assets/__update_test__.png"}, new byte[][]{"fixture-version-two".getBytes("UTF-8")});
+        store.importZip(archive, second, () -> Unit.INSTANCE, progress);
+        require(store.active().getSequence() == 2, "Signed-index raw art import failed");
+        store.importZip(archive, first, () -> Unit.INSTANCE, progress);
+        require(store.active().getSequence() == 2, "Older import index downgraded active resources");
+        remove(store.getRoot());
+        runner.getTargetContext().getSharedPreferences("client_updates", 0).edit().clear().commit();
+        store = new UpdateStore(runner.getTargetContext());
+        UpdateStore.Release batch = store.parse(read(runner.getContext().getAssets().open("update-fixtures/3/update-preview.json")));
+        JSONObject pack = batch.getJson().getJSONArray("packs").getJSONObject(0);
+        String name = pack.getString("url").substring(pack.getString("url").lastIndexOf('/') + 1);
+        archive = new File(store.getStaging(), "single-pack.zip");
+        try (OutputStream out = new FileOutputStream(archive)) { out.write(read(runner.getContext().getAssets().open("update-fixtures/3/" + name))); }
+        store.remember(batch);
+        require(new UpdateStore(runner.getTargetContext()).checked().getSequence() == 3, "Trusted index was not retained for later imports");
+        String partial = store.importZip(archive, null, () -> Unit.INSTANCE, progress);
+        require(partial.contains("仍缺") && store.active() == null, "Partial package incorrectly activated");
+        java.util.concurrent.atomic.AtomicInteger downloads = new java.util.concurrent.atomic.AtomicInteger();
+        UpdateDownload source = copy(runner, 3, false);
+        UpdateDownload counted = new UpdateDownload() {
+            public void checkCancelled() {}
+            public void download(String url, File file, long size, Function1<? super Long, Unit> callback) { downloads.incrementAndGet(); source.download(url, file, size, callback); }
+        };
+        java.util.List<TransferProgress> events = new java.util.ArrayList<>();
+        store.apply(batch, counted, value -> Unit.INSTANCE, value -> { events.add(value); return Unit.INSTANCE; });
+        require(store.active().getSequence() == 3 && downloads.get() == batch.getJson().getJSONArray("packs").length() - 1, "Imported package downloaded again");
+        TransferProgress last = events.get(events.size() - 1);
+        require(last.getCompletedBytes() == last.getTotalBytes() && last.getFraction() == 1000, "Aggregate progress did not complete");
+        result.putBoolean("zipImports", true); result.putBoolean("partialImportReuse", true); result.putBoolean("aggregateProgress", true);
+    }
+    private static void writeZip(File file, String[] names, byte[][] contents) throws IOException {
+        try (java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(new FileOutputStream(file))) {
+            for (int i = 0; i < names.length; i++) { zip.putNextEntry(new java.util.zip.ZipEntry(names[i])); zip.write(contents[i]); zip.closeEntry(); }
+        }
+    }
+
     /** Uses the real GitHub API and HTTPS Release redirects; no transport replacement. */
     public static void online(Instrumentation runner) {
         Bundle result = new Bundle();

@@ -6,9 +6,11 @@ import java.io.File
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Proxy
+import java.net.ProxySelector
 import java.net.URI
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentHashMap
 
 interface UpdateDownload {
     fun checkCancelled()
@@ -31,11 +33,15 @@ class UpdateTransport(private val settings: UpdateNetwork, builder: OkHttpClient
     private val mode = settings.mode
     private val prefix = settings.prefix.trim().trimEnd('/')
     private val cancelled = AtomicBoolean(false)
-    @Volatile private var call: Call? = null
+    private val calls = ConcurrentHashMap.newKeySet<Call>()
     private val client: OkHttpClient
     init {
         builder.connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
+            .eventListener(object : EventListener() {
+                override fun callEnd(call: Call) { calls.remove(call) }
+                override fun callFailed(call: Call, ioe: IOException) { calls.remove(call) }
+            })
         if (mode == "http" || mode == "socks") {
             val host = settings.host.trim()
             val port = settings.port
@@ -51,11 +57,16 @@ class UpdateTransport(private val settings: UpdateNetwork, builder: OkHttpClient
                 }
             }
             require(mode != "socks" || user.isEmpty()) { "SOCKS5 暂支持无认证代理；带认证请使用 HTTP 代理" }
+        } else if (mode == "system") {
+            // Read Android's Wi-Fi proxy/PAC selection for this client only.
+            // In particular, do not call ProxySelector.setDefault or change WebView.
+            builder.proxy(null)
+            ProxySelector.getDefault()?.let { builder.proxySelector(it) }
         } else builder.proxy(Proxy.NO_PROXY)
         if (mode == "accelerator") requireHttps(prefix)
         client = builder.build()
     }
-    fun cancel() { cancelled.set(true); call?.cancel() }
+    fun cancel() { cancelled.set(true); calls.forEach { it.cancel() } }
     override fun checkCancelled() { if (cancelled.get() || Thread.currentThread().isInterrupted) throw IOException("更新已取消，可再次检查后续传") }
     private fun routed(url: String): String {
         requireHttps(url)
@@ -72,7 +83,7 @@ class UpdateTransport(private val settings: UpdateNetwork, builder: OkHttpClient
             val request = Request.Builder().url(current).header("Accept-Encoding", "identity")
                 .header("User-Agent", "Stronghold-Client-Updater/1")
             if (offset > 0) request.header("Range", "bytes=$offset-")
-            val active = client.newCall(request.build()); call = active
+            val active = client.newCall(request.build()); calls.add(active)
             if (cancelled.get()) active.cancel()
             val response = active.execute()
             if (response.code in setOf(301, 302, 303, 307, 308)) {
@@ -107,7 +118,7 @@ class UpdateTransport(private val settings: UpdateNetwork, builder: OkHttpClient
         target.parentFile!!.mkdirs()
         if (target.length() > size) target.delete()
         var offset = target.length()
-        if (offset == size) return
+        if (offset == size) { progress(size); return }
         response(url, offset).use { response ->
             if (response.code == 200) offset = 0
             else {
@@ -116,6 +127,7 @@ class UpdateTransport(private val settings: UpdateNetwork, builder: OkHttpClient
                     response.header("Content-Range")?.endsWith("/$size") == true) { "续传范围无效" }
             }
             val body = response.body ?: throw IOException("下载响应为空")
+            progress(offset)
             java.io.FileOutputStream(target, offset > 0).use { out ->
                 body.byteStream().use { stream ->
                     val buffer = ByteArray(131072)

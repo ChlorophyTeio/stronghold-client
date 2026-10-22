@@ -10,4 +10,5 @@
 -keep class top.ppparty.stronghold_client.UpdateStore$Release { public *; }
 -keep interface top.ppparty.stronghold_client.UpdateDownload { *; }
 -keep class top.ppparty.stronghold_client.UpdateTransport { public *; }
+-keep class top.ppparty.stronghold_client.TransferProgress { public *; }
 -keep interface kotlin.jvm.functions.Function1 { *; }

@@ -20,6 +20,15 @@ with tempfile.TemporaryDirectory() as d:
         index=r/'index.json'; index.write_text(json.dumps(dict(entries={'/assets/__update_test__.png':entry})))
         args=types.SimpleNamespace(index=index, base_index=None, asset_root=r, key=root/'.toolchain/update-signing/private.pem', output=out/str(sequence), base_url='https://github.com/test/offline/releases/download/test',sequence=sequence,version='offline-test-'+str(sequence),notes='Offline test fixture; never publish',apk=None)
         print(builder.build(args))
+    entries={}
+    for number in range(8):
+        file=r/'assets'/f'batch-{number}.png'
+        file.write_bytes((f'parallel-fixture-{number}-'.encode())*4096)
+        digest=builder.sha(file)
+        entries[f'/assets/batch-{number}.png']=dict(asset=f'assets/batch-{number}.png',sha256=digest,bytes=file.stat().st_size,hashes=[digest[:16]])
+    index=r/'batch-index.json';index.write_text(json.dumps(dict(entries=entries)))
+    args=types.SimpleNamespace(index=index,base_index=None,asset_root=r,key=root/'.toolchain/update-signing/private.pem',output=out/'3',base_url='https://github.com/test/offline/releases/download/test',sequence=3,version='offline-batch-test',notes='Offline fixture; never publish',apk=None)
+    print(builder.build(args))
 
 # Exercise the full catalogue parser without shipping copies of real art in tests.
 import base64
