@@ -26,3 +26,5 @@
 ## 范围
 
 未修改或重启任何游戏容器、游戏源码、数据库或共享快照。客户端源码、APK 和分包通过 GitHub Release 提供；私钥、凭据、原始资源目录均不进入 Git。交付 ZIP 内 APK 已流式校验，与根目录 APK 一致。
+
+GitHub 发现兼容：列表实际先返回 v0.3.1-resources；其 update-preview.json 入口已同步到最新 sequence 5，以供旧客户端升级。原 sequence 4 清单保留为 update-preview-sequence4.json，全部资源分包保留，新 APK 内容未修改。

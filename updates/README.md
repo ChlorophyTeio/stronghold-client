@@ -46,7 +46,7 @@ python3 tool/build-update.py \
   --output updates/releases/v0.3.1-preview \
   --base-url https://github.com/ChlorophyTeio/stronghold-client/releases/download/v0.3.1-preview \
   --full --exclude-obj \
-  --reuse-manifest updates/releases/v0.3.1-resources/update-preview.json \
+  --reuse-manifest updates/releases/v0.3.1-resources/update-preview-sequence4.json \
   --sequence 5 --version game-0.3.1-light-complete \
   --notes '本次修改说明' \
   --apk stronghold-client-0.3.1-preview.apk \
@@ -92,3 +92,5 @@ python3 tool/verify-release.py --tag v0.2.3-preview \
 包名和安装签名保持，versionCode 10，清单 sequence 5。APK 无游戏素材，启动器保留进入原登录页的入口，并新增「下载游戏素材」。用户确认后再下载，可取消/续传；仅更新代理保持独立。新清单复用 v0.3.1-resources 的 256 个分包，并补齐原 APK 的素材，共 512 个分包。旧 Release 不可删除。升级导致已激活版本的文件缺失时，可以重新执行同版本下载修复，不提前返回成功。
 
 元数据导出现在写入 updates/resource-index.json，APK 仅打包自动生成的空索引。`--exclude-obj` 将 32 份 OBJ 文件留给游戏在线加载。`--base-index` 只用于明确指定的旧版测试或历史包，当前轻量发布必须使用完整清单。
+
+GitHub 实际 Releases 列表可能将同版本素材 Release 排在轻量版前，旧客户端只读取第一个 update-preview.json。因此 v0.3.1-resources 的通用更新入口同步为 sequence 5，原 sequence 4 签名清单以 update-preview-sequence4.json 归档；原分包保持不变。发布后必须走一次旧客户端的列表选择及验签流程，不能只验证新 tag。新版本应保持清单序号递增，包和已发布 APK 不原地修改。
