@@ -1,3 +1,5 @@
+> 2026-10-22：已新增游戏 0.3.1 的素材热更新，见 [更新说明](updates/README.md#游戏-031-素材更新2026-10-22)。客户端壳保持 WSS 0.2.3；以下为其构建时记录，素材快照历史描述不代表当前正式服。
+
 # Android 0.2.3：固定连接正式服
 
 - 版本：0.2.3 / versionCode 9；包名 `top.ppparty.stronghold_client`，更新清单 sequence 3。

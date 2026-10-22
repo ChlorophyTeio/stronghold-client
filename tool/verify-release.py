@@ -66,14 +66,19 @@ def main():
     report = dict(repository=args.repository, tag=args.tag, url=release['html_url'], signedManifest=True,
                   manifestSha256=manifest_hash, resourceVersion=signed['resourceVersion'], sequence=signed['sequence'])
     if apk:
-        prefix = f'https://github.com/{args.repository}/releases/download/{args.tag}/'
-        assert apk['url'].startswith(prefix), 'APK URL does not belong to the selected release'
-        name = apk['url'].removeprefix(prefix)
-        assert '/' not in name, 'Unexpected APK asset path'
-        asset = assets[name]
+        prefix = f'https://github.com/{args.repository}/releases/download/'
+        assert apk['url'].startswith(prefix), 'APK URL does not belong to this repository'
+        apk_tag, name = apk['url'].removeprefix(prefix).split('/', 1)
+        assert apk_tag and '/' not in name and name, 'Unexpected APK asset path'
+        apk_assets = assets
+        if apk_tag != tag:
+            apk_release = json.loads(read(f'https://api.github.com/repos/{args.repository}/releases/tags/{apk_tag}', 2*1024*1024))
+            assert not apk_release['draft'], 'Referenced APK is not public'
+            apk_assets = {a['name']: a for a in apk_release['assets']}
+        asset = apk_assets[name]
         assert asset['state'] == 'uploaded' and asset['size'] == apk['bytes'], 'Remote APK is incomplete'
         assert asset['digest'] == 'sha256:'+apk['sha256'], 'GitHub APK digest mismatch'
-        checksum = read(assets[name+'.sha256']['browser_download_url'], 4096).decode().split()
+        checksum = read(apk_assets[name+'.sha256']['browser_download_url'], 4096).decode().split()
         assert checksum == [apk['sha256'], name], 'APK checksum attachment mismatch'
         if args.local_apk:
             with args.local_apk.open('rb') as stream:

@@ -89,7 +89,11 @@ def build(args):
     if args.apk:
         if not args.apk_version_code or not args.apk_certificate:
             raise ValueError('APK requires version code and certificate SHA-256')
-        manifest['apk'] = dict(url=args.base_url.rstrip('/') + '/' + args.apk.name,
+        apk_url = getattr(args, 'apk_url', None) or args.base_url.rstrip('/') + '/' + args.apk.name
+        expected_prefix = '/'.join(args.base_url.rstrip('/').split('/')[:-1]) + '/'
+        if not apk_url.startswith(expected_prefix) or Path(apk_url).name != args.apk.name:
+            raise ValueError('APK URL must reference the same repository and APK filename')
+        manifest['apk'] = dict(url=apk_url,
                               sha256=sha(args.apk), bytes=args.apk.stat().st_size,
                               versionCode=args.apk_version_code,
                               certificateSha256=args.apk_certificate.lower().replace(':', ''))
@@ -120,6 +124,7 @@ def main():
     p.add_argument('--version', required=True)
     p.add_argument('--notes', default='')
     p.add_argument('--apk', type=Path)
+    p.add_argument('--apk-url', help='Reuse an existing APK asset in another release of the same repository')
     p.add_argument('--apk-version-code', type=int)
     p.add_argument('--apk-certificate')
     args = p.parse_args()

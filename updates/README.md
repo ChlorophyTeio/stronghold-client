@@ -1,6 +1,6 @@
 # Android 更新发布与维护
 
-0.2.1 起更新源为公开仓库 [ChlorophyTeio/stronghold-client](https://github.com/ChlorophyTeio/stronghold-client)。所有游戏连接固定为 spa-test；玩家不能更改游戏服务器。
+0.2.1 起更新源为公开仓库 [ChlorophyTeio/stronghold-client](https://github.com/ChlorophyTeio/stronghold-client)。当前 0.2.3 游戏连接固定为正式服；玩家不能更改游戏服务器。
 入口为启动页“更新设置”，以及游戏“设置 → 客户端设置 → 更新设置”。
 Windows 下载器及客户端代码热替换不在本次实现范围。
 
@@ -78,3 +78,9 @@ python3 tool/verify-release.py --tag v0.2.3-preview \
 ```
 
 此检查不使用 GitHub 凭据，不修改游戏配置或全局代理；下载只做流式哈希，不另存一份 APK。
+
+## 游戏 0.3.1 素材更新（2026-10-22）
+
+游戏正式服为 0.3.1，Flutter 壳独立版本仍为 0.2.3。Release `v0.3.1-resources` 使用 sequence 4，同步素材快照 `9a54dcd5111b49ce225611ec7a8634f8d7415c981b97c4ac5ace554222f24d01`。更新设置检查后下载并启用素材，重新进入游戏生效。32 份 OBJ 文件因旧客户端白名单限制不进入更新清单，继续从游戏 HTTPS 加载。无游戏代码热替换或 KCP。
+
+素材增量仍相对 0.2.0 APK 基线累计生成。打包时使用完整导出索引中剔除 `.obj` 路径的兼容索引；不要改变旧客户端允许的文件类型。通过 `--apk-url` 可引用同一仓库既有 Release 的 APK，仍须传本地已验证 APK、版本码和证书，清单记录其原始哈希和长度，不重新上传同一文件。
