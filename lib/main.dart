@@ -62,6 +62,16 @@ class _LauncherState extends State<Launcher> {
   String? _error;
   bool _opening = false;
 
+  Future<void> _updates({bool checkOnOpen = false}) async {
+    try {
+      await gameChannel.invokeMethod<void>('openUpdates', {
+        'checkOnOpen': checkOnOpen,
+      });
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
   Future<void> _open() async {
     final uri = Uri.parse(defaultServer);
     setState(() {
@@ -122,17 +132,14 @@ class _LauncherState extends State<Launcher> {
                 )),
               ]),
               const SizedBox(height: 24),
-              const Chip(label: Text('Android 预览版 · 0.2.3')),
+              const Chip(label: Text('Android 轻量版 · 0.3.1')),
               const SizedBox(height: 12),
-              const Text('本地素材，在线联机',
+              const Text('轻量安装，素材独立下载',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
               const SizedBox(height: 10),
-              Text(
-                  widget.pack == null
-                      ? '使用服务器资源'
-                      : '已内置 ${(widget.pack!.totalBytes / 1048576).toStringAsFixed(0)} MB '
-                          '美术与音频。版本匹配的资源直接从本机读取。',
-                  style: const TextStyle(height: 1.6, color: Colors.white70)),
+              const Text('安装包不含游戏素材。可先下载素材以减少游戏时的在线加载，'
+                  '也可以直接进入游戏。登录界面与账号流程保持不变。',
+                  style: TextStyle(height: 1.6, color: Colors.white70)),
               const SizedBox(height: 24),
               const Text('当前连接：正式服',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
@@ -153,14 +160,17 @@ class _LauncherState extends State<Launcher> {
                   )),
               const SizedBox(height: 12),
               if (Platform.isAndroid)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _opening ? null : () => _updates(checkOnOpen: true),
+                    icon: const Icon(Icons.download_rounded),
+                    label: const Text('下载游戏素材'),
+                  ),
+                ),
+              if (Platform.isAndroid)
                 TextButton.icon(
-                  onPressed: _opening ? null : () async {
-                    try {
-                      await gameChannel.invokeMethod<void>('openUpdates');
-                    } on PlatformException catch (error) {
-                      if (mounted) setState(() => _error = error.message);
-                    }
-                  },
+                  onPressed: _opening ? null : () => _updates(),
                   icon: const Icon(Icons.system_update),
                   label: const Text('更新设置'),
                 ),

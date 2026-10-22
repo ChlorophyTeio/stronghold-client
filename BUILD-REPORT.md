@@ -1,39 +1,28 @@
-> 2026-10-22：已新增游戏 0.3.1 的素材热更新，见 [更新说明](updates/README.md#游戏-031-素材更新2026-10-22)。客户端壳保持 WSS 0.2.3；以下为其构建时记录，素材快照历史描述不代表当前正式服。
+# Android 0.3.1 轻量版验收
 
-# Android 0.2.3：固定连接正式服
+- 版本 0.3.1 / versionCode 10，包名 `top.ppparty.stronghold_client` 不变。
+- APK 46,100,200 字节（约 43.96 MiB）；旧版 632,513,676 字节，减少 92.71%。SHA-256 `3957dd40ec547eda79a04dfecf12e3a7a6f59aea7c436dc096fdc155af560419`。
+- 保留 Flutter 启动器、容器图标与原游戏登录页，游戏来源固定 `https://spa.ppparty.top:8000/`，使用 WSS。保留全屏优先、手动边距、Cookie 登录和仅更新代理。
+- APK 只含空素材索引，不包含游戏美术、音频、字体和测试驱动。三个 ABI 的 Dart AOT、图标、更新源和公钥一致性、原证书 APK v2 签名及 16 KiB zipalign 通过。
 
-- 版本：0.2.3 / versionCode 9；包名 `top.ppparty.stronghold_client`，更新清单 sequence 3。
-- 来源：`https://spa.ppparty.top:8000/`。Flutter 启动器及 Android 原生窗口同时固定该来源，不提供服务器选择，也不接受旧偏好或 Intent 地址覆盖。
-- 启动页、游戏加载/错误提示、客户端设置及更新页均显示正式服。
-- 沿用既有 APK 安装签名、ECDSA 更新密钥、公钥及 `ChlorophyTeio/stronghold-client` 更新源，支持从旧版覆盖升级。
-- 延续全屏优先：不自动避让挖孔、圆角或手势区；仅用户手动边距生效，恢复默认归零。保留边距及仅更新代理设置。
-- 切换 HTTPS 来源后需在正式服重新登录；不搬运测试服 cookie 或账号凭据。游戏流量继续独立于更新代理。
+## 下载与升级
 
-## 素材与服务器范围
+启动页新增「下载游戏素材」，自动检查签名清单，下载正文前仍须用户确认；显示完整分包量、Wi-Fi 建议和取消/续传说明。也可先在线进入游戏，原登录界面不改动。下载后再次进入游戏启用，不切换正在运行的对局。
 
-只读检查两服运行容器及 Compose：均挂载 `97a5a4d85f07b6641943637ff24045afc4d840adb2abd56f9eaba9df40cad947` 素材快照，assets/fonts 均只读。客户端锁文件与此一致，导出脚本仍从测试服源码只读生成元数据，资源按完整来源与内容哈希匹配。没有重复素材分包。
+清单 sequence 5，35,552 个路径，512 个分包，共 1,460,079,055 字节（约 1.36 GiB）。256 个分包复用公开 v0.3.1-resources URL，256 个补齐原内置素材；所有当前受支持资源均被分包覆盖，不依赖旧 APK 内置基线。32 份 OBJ 模型保持在线加载。旧 Release 不可删除。
 
-正式服和测试服 LAN 首页、healthz 均 HTTP 200；本环境访问两个公网 HTTPS 入口均遭遇 TLS EOF，因此模拟器的只读页面回归使用独立测试 APK 中已有的 LAN 传输适配器，生产 APK 未加入该适配器或 TLS 绕过。
+同版本已激活但文件缺失时允许下载修复，修复不覆盖上一版回退记录。覆盖升级沿用原 APK 证书和更新公钥，保留系统应用数据。实际素材占用仍取决于下载选择，APK 缩小不代表下载后不占空间。
 
-没有修改或重新部署游戏容器、游戏源码、数据库或共享素材快照。运行前后容器镜像、启动时间、健康状态及只读挂载一致，记录：`logs/0.2.3-containers-before.json`、`logs/0.2.3-containers-after.json`。
+## 验证
 
-## 验收
+- Flutter 分析无问题、8 项测试通过；Android 16 项单元测试无失败。
+- Python 打包测试覆盖累计素材、旧分包复用、签名篡改拒绝、源文件变化拒绝。
+- 签名完整包已逐包、逐文件校验；分包无重复内容哈希、全部清单资源有覆盖。清单 15,236,721 字节，小于旧客户端 24 MiB 限制。
+- 模拟器实际安装最终发布 APK，离线签名夹具通过下载激活、损坏包拒绝、取消、回退、同版本缺失修复、原生 Range 读取及更新代理隔离测试。记录 `logs/0.3.1-light-final-transactions.log`。
+- 零素材情况下原生游戏页连续 3 次加载、登录入口、横屏、反向横屏、全屏和手动边距、客户端设置均通过。截图 `logs/0.3.1-light-login.png`，记录 `logs/0.3.1-light-login-smoke.log`。测试驱动只读 GET 访问正式服 LAN 页面以适配执行器网络，不进入交付 APK，也未绕过交付 TLS 检查。
+- Flutter 启动页实机 XML 确认显示「下载游戏素材」与「进入游戏」。模拟器默认 Flutter Vulkan 渲染曾触发宿主 Illegal instruction；验收启动页使用仅启动参数 `enable-impeller=false`，未更改交付引擎设置。
+- 小米真机、完整 1.36 GiB 资源下载及玩家实际代理仍需实测；模拟器夹具与 GitHub 附件校验不替代这些条件。
 
-- APK `stronghold-client-0.2.3-preview.apk`：632,513,676 字节，SHA-256 `5e6a4806c793f0ea0d384b1180be945d5adeda3190a4dc9388702291a1618fe4`。
-- 素材 25,415 文件全量校验、Python 更新打包测试、Flutter analyze、2 项启动页测试及 16 项原生 JUnit 通过。Flutter 资源测试首轮宿主段错误，单独复测 6 项全部通过，记录：`logs/0.2.3-resource-test-retry.log`。
-- APK 库存/资源哈希、三个 ABI 的 AOT、容器图标、签名公钥、无私钥/测试夹具、APK v2 签名及 16 KiB zipalign 通过。
-- 正式服 LAN 页面通过三次加载、正反横屏、模拟挖孔及零自动边距、手动边距调整/保存/恢复默认、客户端设置入口、原生本地音频 Range 206 / 8 字节；旧服务器偏好和 Intent 地址覆盖无效。记录：`logs/0.2.3-game-runtime.log`。首轮 UI 返回操作超时，未修改交付包复测通过，失败日志同样保留。
-- 更新清单沿用原私钥签名并独立验签通过，sequence 3 / APK code 9，资源分包为零。
+## 范围
 
-独立测试 APK 只执行只读 GET，不创建账号或对局。
-
-## 公开发布与旧版升级
-
-- [v0.2.3-preview](https://github.com/ChlorophyTeio/stronghold-client/releases/tag/v0.2.3-preview) 已公开，四个附件的 GitHub 大小及内容 SHA-256 与本地一致。签名清单经公开 HTTPS 再次验证，sequence 3 / APK code 9；记录：`logs/0.2.3-public-release-verification.json`。
-- 实际 0.2.2 / code 8 使用原更新器通过“仅更新 HTTP 代理”检查公开 Release，完整下载 632,513,676 字节 APK，原生及测试驱动独立校验 SHA-256，均为 `5e6a4806c793f0ea0d384b1180be945d5adeda3190a4dc9388702291a1618fe4`。记录：`logs/0.2.3-old-client-download.log`。代理配置仅在独立测试驱动和忽略的本地日志中，未硬编码进入 APK。
-- 旧版“安装已验证的 APK”交给系统安装器覆盖升级，实际包版本从 code 8 变为 code 9；升级前保存的左右边距 13 / 7 保留。记录：`logs/0.2.3-system-install.log`、`logs/0.2.3-after-upgrade-package.txt`、`logs/0.2.3-upgrade-verification.log`。安装时旧 instrumentation 随旧进程被系统终止，实际成功由主机独立检查和新进程测试确认。
-- 覆盖升级后完整回归通过，确认 `fixedProductionServer=true`、`fullBleed=true`、正反横屏、三次渲染、手动边距、客户端设置入口及音频 Range。记录：`logs/0.2.3-upgraded-game-runtime.log`。自动化全局返回键多次超时后，测试驱动改用玩家实际的网页设置入口重新打开菜单并通过；该修改仅在独立测试 APK 中，交付 APK 未重建或替换。
-- 上传连接在服务器已保存全部附件、公开验签及旧版完整下载验证之后仍未结束，已关闭该上传进程；以服务端附件状态、哈希及实际匿名客户端下载结果为准。
-- 本地 APK 及已验证 ZIP 放在项目根目录；旧版 0.2.2 本地交付副本已清理，GitHub 历史版本和素材基线保留。
-
-小米真机仍需用户安装后确认；不能用模拟器结果替代真机验收。
+未修改或重启任何游戏容器、游戏源码、数据库或共享快照。客户端源码、APK 和分包通过 GitHub Release 提供；私钥、凭据、原始资源目录均不进入 Git。交付 ZIP 内 APK 已流式校验，与根目录 APK 一致。

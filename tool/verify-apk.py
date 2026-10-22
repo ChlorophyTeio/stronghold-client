@@ -14,6 +14,8 @@ apk = Path(sys.argv[1]) if len(sys.argv) > 1 else root / f'stronghold-client-{ve
 with zipfile.ZipFile(apk) as bundle:
     manifest = json.loads(bundle.read('assets/flutter_assets/assets/game/index.json'))
     unique = {entry['asset']: entry for entry in manifest['entries'].values()}
+    assert not unique and manifest['totalBytes'] == 0, 'Light APK must not bundle game resources'
+    assert apk.stat().st_size < 120 * 1024 * 1024, 'Unexpected light APK size'
     for asset, entry in unique.items():
         info = bundle.getinfo('assets/flutter_assets/' + asset)
         assert info.file_size == entry['bytes'], asset

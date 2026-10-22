@@ -21,5 +21,14 @@ with tempfile.TemporaryDirectory() as d:
         args=types.SimpleNamespace(index=index, base_index=None, asset_root=r, key=root/'.toolchain/update-signing/private.pem', output=out/str(sequence), base_url='https://github.com/test/offline/releases/download/test',sequence=sequence,version='offline-test-'+str(sequence),notes='Offline test fixture; never publish',apk=None)
         print(builder.build(args))
 
-args=types.SimpleNamespace(index=root/'assets/game/index.json', base_index=root/'updates/baselines/0.2.0-index.json.gz', asset_root=root, key=root/'.toolchain/update-signing/private.pem', output=out/'baseline', base_url='https://github.com/test/offline/releases/download/baseline',sequence=1,version='baseline-test',notes='Offline baseline test; never publish',apk=None)
-print(builder.build(args))
+# Exercise the full catalogue parser without shipping copies of real art in tests.
+import base64
+import subprocess
+index=json.loads((root/'updates/resource-index.json').read_text())
+entries={k:v for k,v in index['entries'].items() if not k.endswith('.obj')}
+payload=builder.encode(dict(schema=1,packageId='top.ppparty.stronghold_client',channel='preview',sequence=1,resourceVersion='catalogue-parser-fixture',minClientCode=6,notes='Parser fixture only',entries=entries,packs=[]))
+with tempfile.TemporaryDirectory() as d:
+    p=Path(d);(p/'payload').write_bytes(payload)
+    subprocess.run(['openssl','dgst','-sha256','-sign',str(root/'.toolchain/update-signing/private.pem'),'-out',str(p/'signature'),str(p/'payload')],check=True)
+    target=out/'baseline';target.mkdir()
+    (target/'update-preview.json').write_bytes(builder.encode(dict(payload=base64.b64encode(payload).decode(),signature=base64.b64encode((p/'signature').read_bytes()).decode())))

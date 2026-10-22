@@ -31,6 +31,8 @@ def build(args):
         if actual != expected:
             raise ValueError('Signing key does not match the APK update public key')
     source = json.loads(args.index.read_text())
+    if getattr(args, 'exclude_obj', False):
+        source['entries'] = {path: entry for path, entry in source['entries'].items() if not path.endswith('.obj')}
     baseline_bytes = (gzip.decompress(args.base_index.read_bytes()) if args.base_index.suffix == '.gz' else args.base_index.read_bytes()) if args.base_index else b'{"entries":{}}'
     baseline = json.loads(baseline_bytes)['entries']
     available = {e['sha256'] for e in baseline.values()}
@@ -54,11 +56,37 @@ def build(args):
             raise ValueError('Resource changed: ' + path)
         unique[digest] = (file, entry['bytes'])
     args.output.mkdir(parents=True, exist_ok=True)
+    packs = []
+    reuse_manifest = getattr(args, 'reuse_manifest', None)
+    if reuse_manifest:
+        outer = json.loads(reuse_manifest.read_bytes())
+        reused_payload = base64.b64decode(outer['payload'], validate=True)
+        reused_signature = base64.b64decode(outer['signature'], validate=True)
+        if not public_key:
+            raise ValueError('Reusing packs requires the trusted update public key')
+        with tempfile.TemporaryDirectory() as directory:
+            inp, sig = Path(directory) / 'payload', Path(directory) / 'signature'
+            inp.write_bytes(reused_payload); sig.write_bytes(reused_signature)
+            subprocess.run(['openssl', 'dgst', '-sha256', '-verify', str(public_key),
+                            '-signature', str(sig), str(inp)], check=True, capture_output=True)
+        reused = json.loads(reused_payload)
+        if reused['packageId'] != 'top.ppparty.stronghold_client' or reused['channel'] != 'preview' or reused['sequence'] >= args.sequence:
+            raise ValueError('Reused manifest must be an earlier release of this application')
+        prefix = '/'.join(args.base_url.rstrip('/').split('/')[:-1]) + '/'
+        reused_files = set()
+        for pack in reused['packs']:
+            files = set(pack['files'])
+            if not files <= unique.keys():
+                continue
+            if not pack['url'].startswith(prefix) or not HEX.fullmatch(pack['sha256']) or reused_files & files:
+                raise ValueError('Unsafe or overlapping reused pack')
+            packs.append(pack)
+            reused_files.update(files)
+        available.update(reused_files)
     buckets = {}
     for digest, (file, size) in sorted(unique.items()):
         if digest not in available:
             buckets.setdefault(digest[:2], []).append((digest, file, size))
-    packs = []
     # Bucket membership is content based; split at 16 MiB (oversize single files allowed).
     for bucket, members in sorted(buckets.items()):
         groups, group, count = [], [], 0
@@ -112,9 +140,11 @@ def build(args):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--index', type=Path, default=ROOT / 'assets/game/index.json')
-    p.add_argument('--base-index', type=Path, default=ROOT / 'updates/baselines/0.2.0-index.json.gz', help='Index embedded in oldest supported APK; omit for full pack')
+    p.add_argument('--index', type=Path, default=ROOT / 'updates/resource-index.json')
+    p.add_argument('--base-index', type=Path, help='Optional legacy APK baseline; light clients require a complete catalogue')
     p.add_argument('--full', action='store_true', help='Generate a full resource pack instead of the APK baseline delta')
+    p.add_argument('--exclude-obj', action='store_true', help='Leave OBJ files online for existing clients with the original art allowlist')
+    p.add_argument('--reuse-manifest', type=Path, help='Reuse signed earlier release packs; only missing contents are repacked')
     p.add_argument('--asset-root', type=Path, default=ROOT)
     p.add_argument('--key', type=Path, default=ROOT / '.toolchain/update-signing/private.pem')
     p.add_argument('--public-key', type=Path, default=ROOT / 'android/app/src/main/assets/update-public.pem')

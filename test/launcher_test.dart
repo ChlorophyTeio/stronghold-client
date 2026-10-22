@@ -10,7 +10,8 @@ void main() {
         ClientApp(pack: ResourcePack({}, totalBytes: 10 * 1048576)));
     expect(find.text('卫戍协议：盟约'), findsOneWidget);
     expect(find.text('当前连接：正式服'), findsOneWidget);
-    expect(find.textContaining('10 MB'), findsOneWidget);
+    expect(find.text('轻量安装，素材独立下载'), findsOneWidget);
+    expect(find.textContaining('登录界面与账号流程保持不变'), findsOneWidget);
     expect(find.text('进入游戏'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
     expect(find.text('恢复正式服地址'), findsNothing);

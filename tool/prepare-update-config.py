@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Validate and synchronize build-time update source. Never connects to GitHub."""
+"""Prepare lightweight bootstrap assets and update trust. Never connects to GitHub."""
 import json
 from pathlib import Path
 import re
 root = Path(__file__).resolve().parents[1]
+bootstrap = root / 'assets/game/index.json'
+bootstrap.parent.mkdir(parents=True, exist_ok=True)
+bootstrap.write_text('{"version":1,"totalBytes":0,"entries":{}}')
 source = root / 'updates/source.json'
 config = json.loads(source.read_text())
 repo = config.get('repository', '')

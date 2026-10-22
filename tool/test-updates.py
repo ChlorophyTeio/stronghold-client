@@ -47,6 +47,28 @@ class Packs(unittest.TestCase):
                 self.assertEqual(z.read(z.namelist()[0]), b'changed')
             (r/'payload').write_bytes(payload + b' ')
             self.assertNotEqual(subprocess.run(verify, capture_output=True).returncode, 0)
+            # A light APK has no embedded baseline: retain old delta URLs but
+            # publish the baseline bytes as well, without duplicate contents.
+            delta_manifest = Path(result['manifest'])
+            args.base_index = None
+            args.reuse_manifest = delta_manifest
+            args.public_key = r / 'public.pem'
+            args.output = r / 'light'
+            args.base_url = 'https://github.com/test/test/releases/download/v2'
+            args.sequence = 2
+            full = builder.build(args)
+            full_manifest = json.loads(base64.b64decode(json.loads(Path(full['manifest']).read_text())['payload']))
+            hashes = [h for p in full_manifest['packs'] for h in p['files']]
+            self.assertEqual(set(hashes), {e['sha256'] for e in entries.values()})
+            self.assertEqual(len(hashes), len(set(hashes)))
+            self.assertEqual(full_manifest['packs'][0], pack)
+            self.assertEqual(len(list(args.output.glob('resources-*.zip'))), 1)
+            tampered = json.loads(delta_manifest.read_text())
+            tampered['payload'] = base64.b64encode(b'{}').decode()
+            bad_manifest = r/'bad.json'; bad_manifest.write_text(json.dumps(tampered))
+            args.reuse_manifest = bad_manifest
+            with self.assertRaises(subprocess.CalledProcessError): builder.build(args)
+            args.reuse_manifest = delta_manifest
             # A corrupt source cannot produce a signed release.
             (r/'assets/changed.png').write_bytes(b'corrupt')
             with self.assertRaises(ValueError): builder.build(args)

@@ -13,7 +13,8 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "top.ppparty.stronghold/game")
             .setMethodCallHandler { call, result ->
                 if (call.method == "openUpdates") {
-                    startActivity(Intent(this, UpdateActivity::class.java))
+                    startActivity(Intent(this, UpdateActivity::class.java)
+                        .putExtra("checkOnOpen", call.argument<Boolean>("checkOnOpen") == true))
                     result.success(null)
                 } else if (call.method != "openGame") {
                     result.notImplemented()

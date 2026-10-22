@@ -100,6 +100,8 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
                     Thread.sleep(300);
                 }
             }
+            require("true".equals(eval("!!document.querySelector('input[type=password]') || [...document.querySelectorAll('button')].some(b=>b.textContent.includes('登录'))")), "Login entry missing without downloaded art");
+            result.putBoolean("loginPreserved", true);
             checkFullscreenViewport();
             require("true".equals(eval("['t','r','b','l'].every(side => getComputedStyle(document.documentElement).getPropertyValue('--sa-' + side).trim() === '0px')")), "Website safe area still reserves space");
             result.putBoolean("fullBleed", true);
@@ -128,6 +130,11 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
             try (InputStream input = getTargetContext().getAssets().open("flutter_assets/assets/game/index.json")) {
                 entries = new JSONObject(new String(readAll(input), "UTF-8")).getJSONObject("entries");
             }
+            JSONObject audioResult;
+            if (entries.length() == 0) {
+                audioResult = new JSONObject().put("source", "online").put("lightApk", true);
+                result.putBoolean("noEmbeddedArt", true);
+            } else {
             String audio = null;
             for (Iterator<String> keys = entries.keys(); keys.hasNext();) {
                 String key = keys.next();
@@ -138,9 +145,10 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
             String url = ORIGIN + "media/~" + hash + "/" + audio.substring("/assets/audio/".length(), audio.length() - 4);
             eval("fetch(" + JSONObject.quote(url) + ",{headers:{Range:'bytes=0-7'}}).then(async r=>window.__PACK_TEST__={status:r.status,bytes:(await r.arrayBuffer()).byteLength,source:r.headers.get('X-SP-Resource')})");
             await(10000, () -> "true".equals(eval("!!window.__PACK_TEST__")));
-            JSONObject audioResult = new JSONObject(decode(eval("JSON.stringify(window.__PACK_TEST__)")));
+            audioResult = new JSONObject(decode(eval("JSON.stringify(window.__PACK_TEST__)")));
             require(audioResult.getInt("status") == 206 && audioResult.getInt("bytes") == 8
                 && "apk-native".equals(audioResult.getString("source")), "Pack range response mismatch: " + audioResult);
+            }
             result.putString("rangeResponse", audioResult.toString());
             require(decode(eval("location.origin")).equals("https://spa.ppparty.top:8000"), "Server override was accepted");
             result.putBoolean("fixedProductionServer", true);

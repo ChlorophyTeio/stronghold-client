@@ -16,6 +16,7 @@ android/key.properties
 .publish-apk-*/
 stronghold-client-*.zip
 updates/releases/
+updates/resource-index.json
 android/app/src/androidTest/assets/update-fixtures/
 tool/__pycache__/
 

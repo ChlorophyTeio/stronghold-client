@@ -54,6 +54,12 @@ public final class UpdateSmoke {
             WebResourceResponse range = clients[0].shouldInterceptRequest(web[0], request(first, true));
             require(range != null && range.getStatusCode() == 206 && "update-native".equals(range.getResponseHeaders().get("X-SP-Resource")) && "fixt".equals(new String(read(range.getData()), "UTF-8")), "Downloaded resource range interception failed");
             require(store.file(pinned.getEntries().getJSONObject("/assets/__update_test__.png")) != null, "Blob missing");
+            // Repair an active version whose formerly available bytes disappeared.
+            File missing = store.file(first.getEntries().getJSONObject("/assets/__update_test__.png"));
+            require(missing != null && missing.delete(), "Could not remove isolated fixture blob");
+            store.apply(first, copy(runner, 1, false), progress);
+            require(store.file(first.getEntries().getJSONObject("/assets/__update_test__.png")) != null, "Active version repair failed");
+            result.putBoolean("missingResourceRepair", true);
             // The actual packaged baseline is still intact.
             require(runner.getTargetContext().getAssets().open("flutter_assets/assets/game/index.json").read() >= 0, "APK baseline missing");
             try { store.apply(second, copy(runner, 2, true), progress); throw new AssertionError("Corrupt pack accepted"); }

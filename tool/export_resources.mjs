@@ -93,11 +93,14 @@ for (const name of ['assets.json', 'local-assets.json', 'local-fx.json']) {
 for (const [key, canonical] of lower) {
   if (canonical && !entries[key]) entries[key] = entries[canonical];
 }
-const temporaryIndex = path.join(target, `index.json.tmp-${process.pid}`);
+// The complete catalogue is release tooling input, never an APK asset.
+const cataloguePath = path.join(root, 'updates/resource-index.json');
+const temporaryIndex = `${cataloguePath}.tmp-${process.pid}`;
 await fs.writeFile(temporaryIndex, JSON.stringify({ version: 1, totalBytes, entries }));
-await fs.rename(temporaryIndex, path.join(target, 'index.json'));
+await fs.rename(temporaryIndex, cataloguePath);
+await fs.writeFile(path.join(target, 'index.json'), JSON.stringify({ version: 1, totalBytes: 0, entries: {} }));
 const dirs = [...new Set(Object.values(entries).map((x) => path.posix.dirname(x.asset) + '/'))].sort();
 const pubspec = path.join(root, 'pubspec.yaml');
 const yaml = (await fs.readFile(pubspec, 'utf8')).split('  assets:\n')[0];
-await fs.writeFile(pubspec, `${yaml}  assets:\n    - assets/branding/\n    - assets/game/index.json\n${dirs.map((d) => '    - ' + JSON.stringify(d)).join('\n')}\n`);
+await fs.writeFile(pubspec, `${yaml}  assets:\n    - assets/branding/\n    - assets/game/index.json\n`);
 console.log(JSON.stringify({ files: lower.size, totalBytes, directories: dirs.length, target, library, snapshot: lock.snapshot }, null, 2));

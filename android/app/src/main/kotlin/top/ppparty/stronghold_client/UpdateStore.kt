@@ -100,7 +100,7 @@ class UpdateStore(private val context: Context) {
     fun apply(release: Release, transport: UpdateDownload, progress: (String) -> Unit) {
         require(release.json.getInt("minClientCode") <= installedCode()) { "请先下载并升级客户端 APK，再启用此素材版本" }
         require(isNew(release) || active()?.sequence == release.sequence) { "已拒绝旧版更新清单；需要回退请使用回退按钮" }
-        if (active()?.sequence == release.sequence) { progress("此素材版本已经启用"); return }
+        if (active()?.sequence == release.sequence && complete(release)) { progress("此素材版本已经启用"); return }
         val embedded = embedded()
         val needed = HashMap<String, Long>()
         for (path in release.entries.keys()) {
@@ -155,7 +155,7 @@ class UpdateStore(private val context: Context) {
         }
         require(needed.isEmpty() && complete(release)) { "更新资源缺失，保留现有版本" }
         transport.checkCancelled()
-        active()?.let { write("previous.json", it.envelope) }
+        active()?.takeIf { it.sequence != release.sequence }?.let { write("previous.json", it.envelope) }
         write("active.json", release.envelope)
         prefs.edit().putLong("highestSequence", maxOf(release.sequence, prefs.getLong("highestSequence", 0))).commit()
         progress("素材 ${release.label} 已就绪；下次进入游戏生效，当前对局不切换")

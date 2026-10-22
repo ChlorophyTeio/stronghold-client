@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const manifest = JSON.parse(await fs.readFile(path.join(root, 'assets/game/index.json'), 'utf8'));
+const manifest = JSON.parse(await fs.readFile(path.join(root, 'updates/resource-index.json'), 'utf8'));
 const unique = new Map(Object.values(manifest.entries).map((x) => [x.asset, x]));
 let bytes = 0;
 let modelFiles = 0;

@@ -40,13 +40,20 @@ class UpdateActivity : Activity() {
         }
         setContentView(scroll); scroll.requestApplyInsets()
         text("客户端更新 · 正式服", 22f)
-        text("素材更新下次进入游戏生效。游戏连接不经过更新代理。", 14f)
+        text("游戏素材在安装后独立下载，下次进入游戏生效。可先在线登录；游戏连接不经过更新代理。", 14f)
         status = text(if (source.optString("repository").isBlank()) "尚未配置更新源：等待建立 GitHub 仓库。" else "更新源：${source.getString("repository")} · preview", 16f)
-        text("当前素材：${store.active()?.label ?: "APK 内置"}", 14f)
+        text("当前素材：${store.active()?.label ?: "尚未下载，游戏将在线加载"}", 14f)
         action("检查更新 / 测试连接") { check() }
         action("下载并启用素材更新") {
             val found = release
-            if (found == null) message("请先检查更新") else launch { net -> store.apply(found, net, ::message) }
+            if (found == null) message("请先检查更新") else {
+                val packs = found.json.getJSONArray("packs")
+                val total = (0 until packs.length()).sumOf { packs.getJSONObject(it).getLong("bytes") }
+                AlertDialog.Builder(this).setTitle("下载游戏素材")
+                    .setMessage("完整素材分包约 ${total / 1048576} MiB，仅下载本机缺少的分包。建议使用 Wi-Fi，可取消并续传。下载前可先设置仅更新代理。是否继续？")
+                    .setPositiveButton("下载并启用") { _, _ -> launch { net -> store.apply(found, net, ::message) } }
+                    .setNegativeButton("暂不下载", null).show()
+            }
         }
         action("下载客户端 APK") { downloadApk() }
         action("安装已验证的 APK") { install() }
@@ -58,6 +65,7 @@ class UpdateActivity : Activity() {
         }
         Button(this).apply { text = "取消当前下载（保留续传文件）"; setOnClickListener { transport?.cancel() }; content.addView(this) }
         Button(this).apply { text = "返回"; setOnClickListener { finish() }; content.addView(this) }
+        if (intent.getBooleanExtra("checkOnOpen", false)) check()
     }
     private fun text(value: String, size: Float) = TextView(this).apply {
         text = value; textSize = size; setPadding(8, 12, 8, 12); content.addView(this)
