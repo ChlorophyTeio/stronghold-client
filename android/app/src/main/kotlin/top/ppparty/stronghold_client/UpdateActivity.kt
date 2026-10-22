@@ -102,7 +102,8 @@ class UpdateActivity : Activity() {
             bytesPerSecond = ((value.completedBytes - lastRateBytes).coerceAtLeast(0) * 1000.0 / (now - lastRateAt))
             lastRateAt = now; lastRateBytes = value.completedBytes
         }
-        if (now - lastProgressAt < 100 && value.stage == lastProgressStage && value.completedBytes != value.totalBytes) return
+        if (now - lastProgressAt < 100 && value.stage.substringBefore(' ') == lastProgressStage.substringBefore(' ') &&
+            value.completedBytes != value.totalBytes) return
         lastProgressAt = now; lastProgressStage = value.stage
         val speed = if (value.stage.contains("下载"))
             " · " + String.format(java.util.Locale.ROOT, "%.2f MiB/s", bytesPerSecond / 1048576) else ""
