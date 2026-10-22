@@ -50,6 +50,8 @@ class GameActivity : Activity() {
     private val marginKeys = arrayOf("left", "top", "right", "bottom")
     private var generation = 0
     private var ready = false
+    private var probeGeneration = -1
+    private var lastBootMessage = ""
     private var rendererGone = false
     private var fileCallback: android.webkit.ValueCallback<Array<Uri>>? = null
 
@@ -289,24 +291,27 @@ class GameActivity : Activity() {
                 localResource(request)
 
             override fun onPageStarted(view: WebView, url: String?, icon: Bitmap?) {
-                generation++; ready = false
+                generation++; ready = false; lastBootMessage = ""
+                status.setOnClickListener(null)
                 status.text = "正在连接正式服…"; status.visibility = View.VISIBLE
                 progress.visibility = View.VISIBLE
                 val current = generation
                 ui.postDelayed({
                     if (!isDestroyed && generation == current && !ready) {
-                        showFailure("加载超过 25 秒。请检查网络，或使用 Android 返回手势查看诊断。")
+                        record("页面启动超过 25 秒，继续等待页面就绪")
+                        status.text = "页面仍在加载，可使用 Android 返回手势查看诊断"
                     }
                 }, 25000)
             }
 
             override fun onPageCommitVisible(view: WebView, url: String?) {
                 installSettings(view)
+                startProbe()
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
                 installSettings(view)
-                probe(generation, 0)
+                startProbe()
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -341,8 +346,16 @@ class GameActivity : Activity() {
         web.loadUrl(server.toString())
     }
 
-    private fun probe(current: Int, attempt: Int) {
-        if (isDestroyed || generation != current) return
+    private fun startProbe() {
+        if (probeGeneration == generation) return
+        probeGeneration = generation
+        probe(generation)
+    }
+
+    // DOM readiness is independent of window.onload: large/slow media may keep
+    // onPageFinished pending after the login screen is already interactive.
+    private fun probe(current: Int) {
+        if (isDestroyed || rendererGone || generation != current || ready) return
         web.evaluateJavascript("""(function(){return JSON.stringify({
           ready:!!window.__SP__, title:document.title,
           error:document.getElementById('boot-err')?.innerText||'',
@@ -353,11 +366,20 @@ class GameActivity : Activity() {
                 val raw = org.json.JSONTokener(value).nextValue() as? String ?: "{}"
                 val state = JSONObject(raw)
                 if (state.optBoolean("ready") || state.optInt("app") > 0) {
-                    ready = true; status.visibility = View.GONE; progress.visibility = View.GONE
+                    ready = true; status.setOnClickListener(null)
+                    status.visibility = View.GONE; progress.visibility = View.GONE
                 } else if (state.optString("error").isNotBlank()) {
-                    showFailure(state.optString("error").take(300))
-                } else if (attempt < 45) ui.postDelayed({ probe(current, attempt + 1) }, 500)
+                    val message = state.optString("error").take(300)
+                    // Boot warnings can be transient. Keep checking so a later
+                    // successful boot always clears the native overlay.
+                    if (message != lastBootMessage) {
+                        lastBootMessage = message
+                        record("页面启动提示：$message")
+                        showFailure(message)
+                    }
+                }
             } catch (_: Exception) { record("无法读取页面启动状态") }
+            if (!ready) ui.postDelayed({ probe(current) }, 500)
         }
     }
 
@@ -436,7 +458,12 @@ class GameActivity : Activity() {
     private fun diagnostics(): String {
         val provider = if (Build.VERSION.SDK_INT >= 26) WebView.getCurrentWebViewPackage()?.let {
             "${it.packageName} ${it.versionName}" } ?: "不可用" else "系统 WebView"
-        return "客户端 0.1.4\n${server}\nAndroid ${Build.VERSION.RELEASE} / ${Build.MANUFACTURER} ${Build.MODEL}\n" +
+        @Suppress("DEPRECATION")
+        val version = packageManager.getPackageInfo(packageName, 0).let {
+            val code = if (Build.VERSION.SDK_INT >= 28) it.longVersionCode else it.versionCode.toLong()
+            "${it.versionName} ($code)"
+        }
+        return "客户端 $version\n${server}\nAndroid ${Build.VERSION.RELEASE} / ${Build.MANUFACTURER} ${Build.MODEL}\n" +
             "WebView：$provider\n横屏：${resources.configuration.orientation == 2}\n" +
             "额外边距（左/上/右/下）：${manualInsets.joinToString("/")}\n" +
             "页面已启动：$ready\n本地素材：$usePack / ${hits.get()} 次 / ${saved.get() / 1048576} MiB\n" +

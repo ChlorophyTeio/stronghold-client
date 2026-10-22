@@ -1,3 +1,14 @@
+# Android 0.3.3 验收
+
+- 包名及签名保持，versionCode 12。APK 46,116,584 字节（约 43.98 MiB），SHA-256 `3cb9e682709b36cdc745b31df3b8003c2772d2aeb7c4ce2b18e52381c864362a`。
+- 修复启动检测只在整页加载完成后开始，以及遇到页面启动提示后停止检测的缺陷；在可见文档提交后开始检测，成功时清除原生提示。慢加载超时继续等待，旧导航任务不能修改新页面状态。
+- 诊断版本由 PackageManager 获取，包含版本名与版本码。旧文案固定显示 0.1.4，不能用于判断实际安装版本。
+- Flutter analyze、8 项 Flutter 测试、24 项 Android 单元测试通过。三 ABI / AOT / 图标 / 空素材索引 / 更新信任配置、APK v2 签名及 16 KiB zipalign 检查通过。
+- Android API 36 模拟器验证：阻塞图片使 onPageFinished 未到达，先出现启动提示，随后应用启动时遮罩自动关闭；继续等待超过 25 秒，旧计时器不恢复提示。见 logs/0.3.3-readiness-runtime.log。没有该小米 Android 17 实机，仍需用户覆盖安装后确认原提示消失。
+- 更新清单 sequence 7 复用原 512 个分包，素材版本不变；原登录、WSS、下载及 ZIP 导入保持。不修改游戏容器或共享素材。
+
+---
+
 # Android 0.3.2 验收
 
 - 包名 `top.ppparty.stronghold_client`，versionCode 11，签名/公钥沿用。APK 46,116,584 字节，约 43.98 MiB；SHA-256 `04b8151ce8e027a1798237439817f84844e23313c5e6ec489e1baea7fd9976a7`。

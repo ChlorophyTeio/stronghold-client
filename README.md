@@ -1,8 +1,12 @@
 # 卫戍协议 Flutter 客户端
 
-[下载 Android 轻量版 0.3.2](https://github.com/ChlorophyTeio/stronghold-client/releases/tag/v0.3.2-preview) · [更新维护说明](updates/README.md) · [构建验收](BUILD-REPORT.md)
+[下载 Android 轻量版 0.3.3](https://github.com/ChlorophyTeio/stronghold-client/releases/tag/v0.3.3-preview) · [更新维护说明](updates/README.md) · [构建验收](BUILD-REPORT.md)
 
 固定连接正式服 `https://spa.ppparty.top:8000/`，沿用现有游戏登录界面、账号 Cookie 和 WSS 联机。玩家不能更改游戏服务器。游戏页面和规则跟随服务器，客户端版本独立。
+
+## 启动状态修复（0.3.3）
+
+页面可见后立即检测应用启动，不再等待所有图片与音频下载结束。页面出现慢加载提示后仍继续检测，启动成功自动关闭原生错误遮罩；25 秒慢加载不再判定服务器连接失败。诊断显示实际安装版本及版本码，修复旧的固定 0.1.4 文案。
 
 ## 轻量安装与素材下载
 

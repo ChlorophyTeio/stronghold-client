@@ -30,7 +30,68 @@ public final class NativeSmokeInstrumentation extends Instrumentation {
 
     @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); upgradeArguments = arguments; updatesOnly = "true".equals(arguments.getString("updatesOnly")); updatesOnline = "true".equals(arguments.getString("updatesOnline")); upgradeMode = arguments.getString("upgradeMode", ""); requireCutout = "true".equals(arguments.getString("requireCutout")); start(); }
 
+    private void testReadiness() {
+        Bundle result = new Bundle();
+        CountDownLatch media = new CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicBoolean finished = new java.util.concurrent.atomic.AtomicBoolean();
+        try {
+            activity = startActivitySync(new Intent().setClassName(getTargetContext(),
+                "top.ppparty.stronghold_client.GameActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            await(15000, () -> { runOnMainSync(() -> web = findWeb(activity.getWindow().getDecorView())); return web != null; });
+            runOnMainSync(() -> {
+                web.stopLoading();
+                WebViewClient original = web.getWebViewClient();
+                web.setWebViewClient(new WebViewClient() {
+                    @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                        String path = request.getUrl().getPath();
+                        if (path.endsWith("slow.png")) {
+                            try { media.await(45, TimeUnit.SECONDS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                            return new WebResourceResponse("image/png", null, new ByteArrayInputStream(new byte[0]));
+                        }
+                        String html = "<html><body><div id='app'></div><div id='boot-err'>fixture boot warning</div>"
+                            + "<img src='/slow.png'><script>setTimeout(()=>{window.__SP__={};document.getElementById('app').textContent='Login ready';},4000)</script></body></html>";
+                        return new WebResourceResponse("text/html", "utf-8", new ByteArrayInputStream(html.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                    }
+                    @Override public void onPageStarted(WebView view, String url, Bitmap icon) { original.onPageStarted(view, url, icon); }
+                    @Override public void onPageCommitVisible(WebView view, String url) { original.onPageCommitVisible(view, url); }
+                    @Override public void onPageFinished(WebView view, String url) { if (url != null && url.endsWith("__readiness_fixture__")) { finished.set(true); original.onPageFinished(view, url); } }
+                });
+                web.loadUrl(ORIGIN + "__readiness_fixture__");
+            });
+            await(12000, () -> hasVisibleText("fixture boot warning"));
+            require(!finished.get(), "Slow resource must keep onPageFinished pending");
+            await(12000, () -> "true".equals(eval("!!window.__SP__")) && !hasVisibleText("fixture boot warning"));
+            require(!finished.get(), "Readiness must clear the overlay before onPageFinished");
+            result.putBoolean("readyBeforePageFinished", true);
+            result.putBoolean("recoversFromBootWarning", true);
+            // The delayed native timeout must not restore an error over a ready page.
+            Thread.sleep(26000);
+            require(!hasVisibleText("页面仍在加载") && !hasVisibleText("fixture boot warning"), "Stale timeout restored overlay");
+            result.putBoolean("noStaleTimeoutOverlay", true);
+            result.putString("version", getTargetContext().getPackageManager().getPackageInfo(getTargetContext().getPackageName(), 0).versionName);
+            media.countDown();
+            runOnMainSync(() -> activity.finish());
+            finish(Activity.RESULT_OK, result);
+        } catch (Throwable error) {
+            media.countDown(); result.putString("error", android.util.Log.getStackTraceString(error)); finish(Activity.RESULT_CANCELED, result);
+        }
+    }
+
+    private boolean hasVisibleText(String text) {
+        final boolean[] found = {false};
+        runOnMainSync(() -> found[0] = visibleText(activity.getWindow().getDecorView(), text));
+        return found[0];
+    }
+    private boolean visibleText(View view, String text) {
+        if (view.getVisibility() != View.VISIBLE) return false;
+        if (view instanceof android.widget.TextView && ((android.widget.TextView)view).getText().toString().contains(text)) return true;
+        if (view instanceof ViewGroup) for (int i=0;i<((ViewGroup)view).getChildCount();i++)
+            if (visibleText(((ViewGroup)view).getChildAt(i), text)) return true;
+        return false;
+    }
+
     @Override public void onStart() {
+        if ("true".equals(upgradeArguments.getString("readinessOnly"))) { testReadiness(); return; }
         if ("download".equals(upgradeMode)) { UpgradeSmoke.download(this, upgradeArguments); return; }
         if ("verify".equals(upgradeMode)) { UpgradeSmoke.verify(this); return; }
         if ("install".equals(upgradeMode)) { UpgradeSmoke.install(this); return; }
